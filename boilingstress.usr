@@ -1,0 +1,330 @@
+c-----------------------------------------------------------------------
+c
+c  User routine for evaluating the force exerted on the wall
+c       DRS - 07/14/2016 - original code 
+c       DRS - 08/29/2016 - wall boiling force added
+c
+c-----------------------------------------------------------------------
+      subroutine wall_boiling_force(q_tot,rho_f,cp_f,k_f,rho_g,h_fg,grav
+     &                                         ,surftens,subcool,bforce)
+
+      include 'SIZE'
+      include 'TOTAL'
+ 
+      integer lxyz,lxyze
+      parameter(lxyz=lx1*ly1*lz1,lxyze=lxyz*lelv)
+
+      real q_tot,rho_f,cp_f,k_f,rho_g,h_fg,grav,surftens
+      real subcool(1),bforce(1)
+
+      integer i,i0,i1,i2,j,j0,j1,j2,k,k0,k1,k2,ipoint,jpoint,e,iside
+      real HTC_q,HTC_b,HTC_l
+      real A_b,freq,n_pp,Db_w,DT_l,DT_w1,DT_w2,delta,dw
+
+      real int_sig_star
+      parameter(int_sig_star=0.4962d0)
+      real dtbgodttot !delta t bubble growth over delta t total
+      parameter(dtbgodttot=0.2d0)
+      real two3rds
+      parameter(two3rds=2.0d0/3.0d0)
+
+      call rzero(bforce,lxyze)
+
+      if(nio.eq.0) then
+        write(*,'(5x,a)') "In wall_boiling_force:"
+        write(*,'(8a13)') "liq dens","l spec heat","l cond","vap dens"
+     &                      ,"ht of vap","gravity","surf tens","ht flux"
+        write(*,'(8es13.4)')
+     &                     rho_f,cp_f,k_f,rho_g,h_fg,grav,surftens,q_tot
+      endif
+
+      do e=1,nelv
+        do iside=1,2*ldim
+          if(cbc(iside,e,1).eq.'W  ') then
+            call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
+            do i=i0,i1
+            do j=j0,j1
+            do k=k0,k1
+              i2=i
+              j2=j
+              k2=k
+              if(iside.eq.1) j2=2
+              if(iside.eq.2) i2=lx1-1
+              if(iside.eq.3) j2=ly1-1
+              if(iside.eq.4) i2=2
+              if(iside.eq.5) k2=2
+              if(iside.eq.6) k2=lz1-1
+              ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(e-1)*lxyz
+              jpoint=i2+(j2-1)*lx1+(k2-1)*lx1*ly1+(e-1)*lxyz
+
+              dw=sqrt((xm1(ipoint,1,1,1)-xm1(jpoint,1,1,1))**2+
+     &                (ym1(ipoint,1,1,1)-ym1(jpoint,1,1,1))**2+
+     &                (zm1(ipoint,1,1,1)-zm1(jpoint,1,1,1))**2)
+
+              HTC_l=k_f/dw
+              DT_l=min(subcool(jpoint),0.0)
+              DT_w1=q_tot/HTC_l+DT_l !use the single phase wall temperature as a guess
+
+              do iter=1,100
+                call abht_wallhnb(A_b,HTC_q,HTC_b,freq,n_pp,Db_w
+     &                       ,DT_w1,DT_l,grav,rho_f,cp_f,k_f,rho_g,h_fg)
+                DT_w2=(q_tot+DT_l*(HTC_l*(1.0d0-A_b)+HTC_q))/
+     &                                   (HTC_l*(1.0d0-A_b)+HTC_q+HTC_b)
+                delta=DT_w2-DT_w1
+                DT_w1=DT_w1+0.5*delta
+                if(abs(delta).lt.1.0d-8) goto 256
+              enddo
+
+ 256          call abht_wallhnb(A_b,HTC_q,HTC_b,freq,n_pp,Db_w
+     &                       ,DT_w1,DT_l,grav,rho_f,cp_f,k_f,rho_g,h_fg)
+
+              sigma_bg=int_sig_star*two3rds*pi*surftens*Db_w*n_pp
+              bforce(ipoint)=dtbgodttot*sigma_bg
+            enddo
+            enddo
+            enddo
+          endif
+        enddo
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine wall_shear_force(visc,wforce)
+
+      include 'SIZE'
+      include 'TOTAL'
+ 
+      integer lxyz,lxyze
+      parameter(lxyz=lx1*ly1*lz1,lxyze=lxyz*lelv)
+
+      integer i,i0,i1,j,j0,j1,k,k0,k1,ipoint,e,iside
+      real visc(1),wforce(1)
+      real sigma(6),gradu(lxyze,3,3),norm(3)
+      real mu
+
+c     evaluate the velocity gradients
+      call gradm1(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),vx) !grad u
+      call gradm1(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),vy) !grad v
+      call gradm1(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),vz) !grad w
+
+c     multiply gradients by the mass matrix
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),bm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),bm1)
+      call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),bm1)
+
+c     reconcile gradients at element boundaries
+      call opdssum(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3))
+      call opdssum(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3))
+      call opdssum(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3))
+
+c     multiply gradients by the inverse mass matrix
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),binvm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),binvm1)
+      call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),binvm1)
+
+      do e=1,nelv !loop over all elements
+        do iside=1,2*ldim !loop over all 6 sides (4 in 2D)
+          if(cbc(iside,e,1).eq.'W  ') then !only operate on wall boundaries
+
+            call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside) !only operate on appropriate GLL points
+            do i=i0,i1
+            do j=j0,j1
+            do k=k0,k1
+              ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(e-1)*lxyz !for array addressing
+
+              if(iflomach) then !variable or constant viscosity
+                mu=visc(ipoint)
+              else
+                mu=visc(1)
+              endif
+
+c             Get the wall normal unit vector and area
+              if    ((iside.eq.1).or.(iside.eq.3))then
+                norm(1)=unx(i,k,iside,e)
+                norm(2)=uny(i,k,iside,e)
+                norm(3)=unz(i,k,iside,e)
+              elseif((iside.eq.2).or.(iside.eq.4))then
+                norm(1)=unx(j,k,iside,e)
+                norm(2)=uny(j,k,iside,e)
+                norm(3)=unz(j,k,iside,e)
+              else
+                norm(1)=unx(i,j,iside,e)
+                norm(2)=uny(i,j,iside,e)
+                norm(3)=unz(i,j,iside,e)
+              endif
+
+c             Evaluate the components of the stress tensor
+              sigma(1)=mu*2.0d0*gradu(ipoint,1,1)+pr(ipoint,1,1,1) !sigma_x,x
+              sigma(2)=mu*(gradu(ipoint,1,2)+gradu(ipoint,2,1))    !sigma_x,y & sigma_y,x
+              sigma(3)=mu*(gradu(ipoint,1,3)+gradu(ipoint,3,1))    !sigma_x,z & sigma_z,x
+              sigma(4)=mu*2.0d0*gradu(ipoint,2,2)+pr(ipoint,1,1,1) !sigma_y,y
+              sigma(5)=mu*(gradu(ipoint,2,3)+gradu(ipoint,3,2))    !sigma_y,z & sigma_z,y
+              sigma(6)=mu*2.0d0*gradu(ipoint,3,3)+pr(ipoint,1,1,1) !sigma_z,z
+
+c             Evaluate the wall force components
+              wforce(ipoint)=
+     &           (sigma(1)*norm(1)+sigma(2)*norm(2)+sigma(3)*norm(3))**2
+     &          +(sigma(2)*norm(1)+sigma(4)*norm(2)+sigma(5)*norm(3))**2
+     &          +(sigma(3)*norm(1)+sigma(5)*norm(2)+sigma(6)*norm(3))**2
+              wforce(ipoint)=sqrt(wforce(ipoint))
+            enddo
+            enddo
+            enddo
+          endif
+        enddo
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+C Module:  abht (boiling heat transfer - auxiliary files)
+C Purpose: wall h/t coeff for nucleate boiling
+c-----------------------------------------------------------------------
+C Contents:
+C   abht_wallhnb    - nucleate boiling 
+
+      SUBROUTINE abht_wallhnb(
+     &   anb, hquench, hnb, f, nden, dw,
+     &   Tw, Tl, g, denl, cpl, tkl, deng, hlg)
+C***********************************************************************
+C set nucleate boiling coeffs: anb, hquench, hnb
+C***********************************************************************
+C**      IMPLICIT NONE
+
+CC ... liquid phase nucleate-boiling area fraction
+C ... for adjusting externally-calculated convective h/t coeffs
+      real anb
+C
+C ... quenching h/t coeff
+C ... per wetted wall area
+      real hquench
+C
+C ... nucleate boiling h/t coeff
+C ... per wetted wall area
+      real hnb
+C
+C ... ebullition frequency
+      real f
+C
+C ... nucleation site density
+      real nden
+C
+C ... departure diameter  
+      real dw
+C
+C --- inputs
+C
+C ... wall superheat
+      real Tw
+C
+C ... liquid subcooling
+      real Tl
+C
+C ... gravitational field strength
+      real g
+C
+C ... liquid-phase density, specific heat, thermal cndctvty
+      real denl
+      real cpl
+      real tkl
+C
+C ... gas-phase density
+      real deng
+C
+C ... interface properties
+      real hlg
+C
+C --- locals
+C
+      real Tsuper
+      real Tsub
+      real FAEVP
+      real twait
+      real qnb
+      real PI
+C
+C --- constants
+C
+      real ONE
+      PARAMETER (ONE=1D0)
+      real ZERO
+      PARAMETER (ZERO=0D0)
+C
+C..... protect against zero divide for no superheat.
+      real Tsmall
+      PARAMETER (Tsmall=1E-8)
+C
+C
+C..... Pi to machine precision
+      PI=4.0d0*datan(1.0d0)
+C
+C.....[3] NUCLEATION SITE DENSITY 
+C.....LEMMART AND CHAWLA (1977)
+C..... must give zero density for no superheat
+      IF ( Tsuper .GT. ZERO ) THEN
+        nden = (185.0*(Tsuper))**1.805
+      ELSE
+        nden = ZERO
+      ENDIF
+C.....[1] DEGREE OF WALL SUPERHEAT
+      Tsuper = MAX( Tw, Tsmall )
+C
+C.....[2] DEGREE OF SUB-COOLING
+      Tsub = MIN( Tl, ZERO )
+C
+C.....[4] BUBBLE DEPARTURE DIAMETER
+C.....TOLUBINSKY AND KOSTANCHUK (1970)
+C
+C*original coefficient
+C*      dw = 0.0014*EXP(-Tsub/45.0)
+C*modified coefficient
+C*      dw = 0.0006*EXP(-Tsub/45.0)
+C
+      dw = 0.0006*EXP(Tsub/45.0)
+C
+C.....[5] AREA FRACTIONS
+C     DEL VALLE AND KENNING (1985) [FAEVP=4.]
+c.....FAEVP=ajustable coefficient
+C
+C*original coefficient
+C*      FAEVP=4
+C*modified coefficient
+C*      FAEVP=2
+C
+      FAEVP=2
+      anb = MIN( ONE, FAEVP*(PI/4*dw**2)*nden )
+C
+C.....[6] BUBBLE DEPARTURE FREQUENCY
+C     CUEMERN AND LINDENSTJERNA (1977)
+      f = SQRT(    4.0*g*(denl-deng)
+     &          /   (3.0*denl*dw)      )
+C
+C.....[7] WAITING TIME
+C     TOLUBINSKI AND KOSTANCHUK
+      twait = 0.8/f
+C
+C.....[8] EVAPORATION HEAT FLUX
+      qnb = deng*(PI/6.0*dw**3)*f*nden*hlg
+C
+C.....[9] EVAPORATION H/T COEFF
+C
+C..... note that this coefficient
+C..... includes scaling by nucleate site area density
+C..... which contains a strong dependence on Tsuper.
+C
+C..... protect against zero divide for no superheat.
+      hnb = qnb/Tsuper
+C
+C.....[10] QUENCHING HEAT TRANSFER COEFFICIENT
+C
+C..... note that this coefficient
+C..... includes scaling by nucleate site area fraction
+C..... which goes to zero when there is no superheat.
+C..... [different definition, but equivalent result
+C.....  to previous implementation. BAS 21.10.05]
+C
+      hquench = 2.0*f*SQRT(twait*denl*cpl*tkl/PI)*anb 
+
+      RETURN
+      END
