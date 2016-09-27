@@ -1,0 +1,181 @@
+C---------------------------------------------------
+      subroutine update_properties
+
+      include 'SIZE'
+      include 'NEKUSE'
+      include 'TOTAL'
+      include 'usrcode/HEMPROP'
+
+      integer lxyz,ipoint
+      parameter(lxyz=lx1*ly1*lz1)
+      real h
+
+      do ipoint=1,lxyz*nelv
+        h=t(ipoint,1,1,1,ifld_h-1)
+        dens(ipoint,1,1,1)=density(h)
+        visc(ipoint,1,1,1)=viscosity(h)
+        thcap(ipoint,1,1,1)=specificheat(h)
+        thcond(ipoint,1,1,1)=conductivity(h)
+        beta(ipoint,1,1,1)=volexpcoef(h)
+        volfrac(ipoint,1,1,1)=volumefraction(h)
+        temper(ipoint,1,1,1)=temperature(h)
+      enddo
+
+      return
+      END
+C---------------------------------------------------
+      subroutine point_properties(h,ix,iy,iz,e)
+
+      include 'SIZE'
+      include 'NEKUSE'
+      include 'TOTAL'
+      include 'usrcode/HEMPROP'
+
+      real h
+      integer ix,iy,iz,e
+
+      dens(ix,iy,iz,e)=density(h)
+      visc(ix,iy,iz,e)=viscosity(h)
+      thcap(ix,iy,iz,e)=specificheat(h)
+      thcond(ix,iy,iz,e)=conductivity(h)
+      beta(ix,iy,iz,e)=volexpcoef(h)
+      volfrac(ix,iy,iz,e)=volumefraction(h)
+      temper(ix,iy,iz,e)=temperature(h)
+
+      return
+      END
+C---------------------------------------------------
+      real function temperature(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h,cp
+
+      if(h.le.h_f) then
+        cp=specificheat(h)
+        temperature=T_sat+(h-h_f)/cp
+      else if(h.ge.h_g) then
+        cp=specificheat(h)
+        temperature=T_sat+(h-h_g)/cp
+      else
+        temperature=T_sat
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function volumefraction(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h
+
+      if(h.le.h_f) then
+        volumefraction=0.0
+      else if(h.ge.h_g) then
+        volumefraction=1.0d0
+      else
+        volumefraction=rho_f*(h-h_f)/(rho_g*(h_g-h)+rho_f*(h-h_f))
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function density(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h,alpha
+
+      if(h.le.h_f) then
+        density=rho_f
+      elseif(h.ge.h_g) then
+        density=rho_g
+      else
+        alpha=volumefraction(h)
+        density=(1.0d0-alpha)*rho_f+alpha*rho_g
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function volexpcoef(h) !-(1/rho)(drho/dh)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h,numer,denom,rho
+
+      if(h.le.h_f) then
+        volexpcoef=0.0
+      elseif(h.ge.h_g) then
+        volexpcoef=0.0
+      else
+        rho=density(h)
+        numer=rho_f*rho_g*(h_g-h_f)
+        denom=rho_g*(h_g-h)+rho_f*(h-h_f)
+        volexpcoef=(rho_f-rho_g)*numer/(denom*denom*rho)
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function viscosity(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h,alpha
+
+      if(h.le.h_f) then
+        viscosity=mu_f
+      elseif(h.ge.h_g) then
+        viscosity=mu_g
+      else
+        alpha=volumefraction(h)
+        viscosity=(1.0d0-alpha)*mu_f+alpha*mu_g
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function conductivity(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h,alpha
+
+      if(h.le.h_f) then
+        conductivity=k_f
+      elseif(h.ge.h_g) then
+        conductivity=k_g
+      else
+        alpha=volumefraction(h)
+        conductivity=(1.0d0-alpha)*k_f+alpha*k_g
+      endif
+
+      return
+      END
+C---------------------------------------------------
+      real function specificheat(h)
+
+      include 'SIZE'
+      include 'usrcode/HEMPROP'
+
+      real h
+
+      if(h.le.h_f) then
+        specificheat=cp_f
+      elseif(h.ge.h_g) then
+        specificheat=cp_g
+      else
+        specificheat=1.0d30
+      endif
+
+      return
+      END
+C---------------------------------------------------

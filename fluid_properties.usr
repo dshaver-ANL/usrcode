@@ -1,0 +1,37 @@
+C---------------------------------------------------
+      subroutine const_prop
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'usrcode/FLUIDPROP'
+
+      parameter(lxyze=lx1*ly1*lz1*lelv)
+
+      dens0=param(1)
+      visc0=param(2)
+      thcap0=param(7)
+      thcond0=param(8)
+      call const_prop2(dens0,visc0,thcap0,thcond0)
+      return
+      END
+C---------------------------------------------------
+      subroutine const_prop2(rho,mu,cp,k)
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'usrcode/FLUIDPROP'
+
+      parameter(lxyz=lx1*ly1*lz1)
+ 
+      real rho,mu,cp,k
+      integer n
+
+      n=lxyz*nelv
+      call cfill(dens,rho,n)
+      call cfill(visc,mu,n)
+      call cfill(thcap,cp,n)
+      call cfill(thcond,k,n)
+      call cfill(beta,0.0,n)
+      return
+      END
+C---------------------------------------------------

@@ -1,0 +1,9 @@
+      real mu_t,src_k,src_o,src_t,Pr_turb,omega_in,omega_w
+      real sigma_ki,sigma_oi,nu_in,k_in,kin,oin
+      integer ifld_k,ifld_o
+     
+      common /RANS/ sigma_ki,sigma_oi,Pr_turb,nu_in,omega_in,omega_w
+     &,k_in,mu_t(lx1,ly1,lz1,lelv),src_k(lx1,ly1,lz1,lelv)
+     &,src_o(lx1,ly1,lz1,lelv),src_t(lx1,ly1,lz1,lelv)
+     &,kin(lx1,ly1,lz1,lelv),oin(lx1,ly1,lz1,lelv)
+     &,ifld_k,ifld_o

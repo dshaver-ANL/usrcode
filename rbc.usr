@@ -1,0 +1,389 @@
+c!  ---  Recycling : usercnk()
+c
+c      shiftn = 11.	! =365/33.12! 15 Dh -- RBC displacement
+c      call set_inflow(shiftn)
+c      ubar   = 1.	! inlet averaged
+c      call rescale_inflow(ubar)
+c
+c!  ---  userbc()
+c
+c      common /cvelbc/ uin(lx1,ly1,lz1,lelt)
+c     $              , vin(lx1,ly1,lz1,lelt)
+c     $              , win(lx1,ly1,lz1,lelt)
+cc$$$     $              , tin(lx1,ly1,lz1,lelt)
+c     $              , wscale
+c
+c      integer e,eg
+c
+c      e = gllel(ieg)
+c
+c      ux = uin(ix,iy,iz,e)
+c      uy = vin(ix,iy,iz,e)
+c      uz = win(ix,iy,iz,e)	! *wscale to save time?
+c$$$      temp=tin(ix,iy,iz,e)
+c      temp = 0.
+c
+c-----------------------------------------------------------------------
+      subroutine set_inflow (dshift)
+c     
+c     fills in BC arrays (uin,vin,win) for inflow Recycling BCs
+c     with downstream normal times dshift
+c     
+c     note: RBC single inlet as 'v  ' in get_shift -- modify for other cases
+      
+      include 'SIZE'
+      include 'TOTAL'
+      
+      common /scruz/ vshift(ldim,lpart) ! RBC shift vector
+
+      real dshift
+      
+      include 'CTIMER'
+      integer icalld
+      save    icalld
+      data    icalld /0/
+
+      integer e,eg,f,ih_rbc
+      
+      common /cvelbc/ uin(lx1,ly1,lz1,lelt) ! bc
+     $              , vin(lx1,ly1,lz1,lelt)
+     $              , win(lx1,ly1,lz1,lelt)
+c$$$     $              , tin(lx1,ly1,lz1,lelt)
+     $              , wscale
+
+      common /ivelbc/ ptv(lpart)      ! pointer to bc velocity points
+     $              , ptf(lpart)      ! pointer to bc face points
+     $              , npts            ! bc points
+     $              , ih_rbc
+      integer ptv,ptf
+
+      common /nvelbc/ xyz(ldim,lpart) ! shifted c.s. coordinates
+c$$$      common /scrns/  uvwt(ldim+1,lpart) ! shifted c.s. velocity
+      common /scrns/  uvwt(ldim,lpart) ! shifted c.s. velocity
+
+      common /r_sv_rbc/ rst(lpart*ldim),dist(lpart)
+      common /i_sv_rbc/ rcode(lpart),elid(lpart),proc(lpart)
+
+      real warea,zmin,zmax,zlen,zcross,utarg
+      integer ifc,ie,ipnt,nxyz,ntot
+      
+      nxyz = nx1*ny1*nz1
+      ntot = nxyz*nelv
+
+      if (icalld.eq.0) then
+         tusbc=0.0
+         nusbc=0
+      endif
+      nusbc=nusbc+1
+      etime1=dnekclock()
+
+      if (icalld.eq.0) then
+        icalld = 1
+        
+c     gets shift vector & sets velocity and face pointers
+        call get_shift (vshift,ptv,ptf,npts,dshift)
+        
+        npmax = iglmax(npts,1)		! max RBC pts/core
+        if (npmax.gt.lpart) call exitti(
+     $                  'set_inflow err: increase lpart in SIZE$',npmax)
+        if (nid.eq.0) write(6,1) npmax
+   1    format(" set_inflow : ",i9," points for RBC")
+         
+      ! RBC mask & averaged shift vector
+        
+        if (if3d) then
+          do i=1,npts
+             k = ptv(i)
+             xyz(1,i) = xm1(k,1,1,1) + vshift(1,i)
+             xyz(2,i) = ym1(k,1,1,1) + vshift(2,i)
+             xyz(3,i) = zm1(k,1,1,1) + vshift(3,i)
+          enddo
+        else                    ! 2D
+          do i=1,npts
+             k = ptv(i)
+             xyz(1,i) = xm1(k,1,1,1) + vshift(1,i)
+             xyz(2,i) = ym1(k,1,1,1) + vshift(2,i)
+          enddo
+        endif
+        ih_rbc = -1
+      endif
+ 
+      if(ih_rbc.ne.-1)
+     $     call intpts_restore(rst,dist,rcode,elid,proc,npts)
+      call interp_vt(ih_rbc,uvwt,xyz,npts,.false.) ! interpolation
+      call intpts_save(rst,dist,rcode,elid,proc,npts)
+
+      warea = 0.
+      if (if3d) then
+        do i=1,npts
+           k = ptv(i)
+           uin(k,1,1,1) = uvwt(1,i)
+           vin(k,1,1,1) = uvwt(2,i)
+           win(k,1,1,1) = uvwt(3,i)
+c$$$           tin(k,1,1,1) = uvwt(4,i)
+           ifc = ptf(i)
+           warea = warea + win(k,1,1,1)*area(ifc,1,1,1)
+        enddo
+      else                      ! 2D
+        do i=1,npts
+           k = ptv(i)
+           uin(k,1,1,1) = uvwt(1,i)
+           vin(k,1,1,1) = uvwt(2,i)
+        enddo
+      endif
+
+      tusbc=tusbc+(dnekclock()-etime1)
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine intpts_save(rst_s,dist_s,rcode_s,elid_s,proc_s
+     $     ,npts)
+      include 'SIZE'
+
+      real rst_s(lpart*ldim),dist_s(lpart)
+      integer rcode_s(lpart),elid_s(lpart),proc_s(lpart)
+
+      real    dist(lpart) ! squared distance
+      real    rst(lpart*ldim)
+      integer rcode(lpart),elid(lpart),proc(lpart)
+
+      common /intp_r/ rst,dist
+      common /intp_i/ rcode,elid,proc
+
+
+      call copy(rst_s ,rst ,npts*ndim)
+      call copy(dist_s,dist,npts)
+      call icopy(rcode_s,rcode,npts)
+      call icopy(elid_s ,elid ,npts)
+      call icopy(proc_s ,proc ,npts)
+      
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine intpts_restore(rst_s,dist_s,rcode_s,elid_s,proc_s
+     $     ,npts)
+      include 'SIZE'
+
+      real rst_s(lpart*ldim),dist_s(lpart)
+      integer rcode_s(lpart),elid_s(lpart),proc_s(lpart)
+
+      real    dist(lpart) ! squared distance
+      real    rst(lpart*ldim)
+      integer rcode(lpart),elid(lpart),proc(lpart)
+
+      common /intp_r/ rst,dist
+      common /intp_i/ rcode,elid,proc
+
+
+      call copy(rst ,rst_s ,npts*ndim)
+      call copy(dist,dist_s,npts)
+      call icopy(rcode,rcode_s,npts)
+      call icopy(elid ,elid_s ,npts)
+      call icopy(proc ,proc_s ,npts)
+      
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine interp_vt(ihandle,uvwt,xyz,n,iftmp)
+c
+c     evaluate velocity for list of points xyz
+c
+c     Note:  -- modify
+c     intpts to get rid off " WARNING: point on boundary or ..."
+
+      include 'SIZE'
+      include 'TOTAL'
+
+c$$$      real uvwt(ldim+1,n),xyz(ldim,n)
+      real uvwt(ldim,n),xyz(ldim,n)
+      logical ifot,ifpts,iftmp
+      integer ihandle
+
+      parameter(nmax=lpart,nfldmax=ldim)
+      common /rv_intp/ pts(ldim*nmax)
+      common /outtmp/ wrk(lx1*ly1*lz1*lelt,nfldmax)
+
+c$$$
+      iftmp = .false.	! no temperature
+
+      nxyz  = nx1*ny1*nz1
+      ntot  = nxyz*nelt
+
+      if (n.gt.nmax) call exitti ('ABORT: interp_vt() n > nmax!$',n)
+      
+c      if (nelgt.ne.nelgv) call exitti
+c     $   ('ABORT: interp_vt() nelgt.ne.nelgv not yet supported!$',nelgv)
+
+C     Not as bad as interpolation, leave copy for multiple handles as is
+C     for the moment
+      do i=1,n				! ? not moving -> save?
+         pts(i)     = xyz(1,i)
+         pts(i + n) = xyz(2,i)
+         if (if3d)  pts(i + n*2) = xyz(3,i)
+      enddo
+
+      if(ihandle.lt.0) then ! signal to find points
+        ifpts = .true.         ! find points
+        tolin = 1.e-8
+        call intpts_setup(tolin,ihandle)
+      else
+        ifpts = .false.
+      endif
+
+      ! pack working array
+      call opcopy(wrk(1,1),wrk(1,2),wrk(1,3),vx,vy,vz)
+      if(iftmp)then
+        call copy  (wrk(1,4),t,ntot)
+        nflds = ndim + 1        ! number of fields to interpolate
+      else
+        nflds = ndim
+      endif
+
+C     NOTE :: nfldmax must be increased to include jacobian
+      ! innterpolate
+      ifot  = .true.           ! transpose output (to match input ordering)
+      call intpts(wrk,nflds,pts,n,uvwt,ifot,ifpts,ihandle)	! copy array instead?
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rescale_inflow(s1)  ! rescale inflow
+
+c     s1 is the target speed (Ubar) at the inflow boundary
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer icalld,e,eg,f
+      save    icalld
+      data    icalld /0/
+
+      real    s2
+      save    s2   		! ubar if s1=0
+      
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+c$$$     $              , tin(lx1,ly1,lz1,lelt)
+     $              , wscale
+     
+      common /ivelbc/ ptv(lpart)      ! pointer to bc velocity points
+     $              , ptf(lpart)      ! pointer to bc face points
+     $              , npts            ! bc points
+     $              , ih_rbc
+      integer ptv,ptf
+      
+      real vv,ww,ss
+      
+      do kpass = 1,2
+
+         vv = 0.
+         ww = 0.
+         do i  = 1, npts
+            j = ptf(i)
+            k = ptv(i)
+            vv = vv + (unx(j,1,1,1)*uin(k,1,1,1)
+     $              +  uny(j,1,1,1)*vin(k,1,1,1))
+     $              * area(j,1,1,1)
+            if (if3d) vv = vv + unz(j,1,1,1)*win(k,1,1,1)
+     $                             *area(j,1,1,1)
+            ww = ww + area(j,1,1,1)
+         enddo
+         vv = -vv            ! Because unit normal points outward
+         vv = glsum(vv,1) 
+         ww = glsum(ww,1) 
+         vv = vv/ww          ! Average velocity
+                  
+C     Flow rate
+
+         if (abs(s1).gt.1.e-15) then
+             ss     = s1/vv   	 	! Scale factor
+         else				! s1=0
+           if (icalld.ne.0) then
+             ss     = s2/vv
+           else				! first call : store vv
+             s2     = vv
+             ss     = s2/vv
+             icalld = icalld + 1 
+             if (nid.eq.0) write(6,1) s1,s2
+           endif
+         endif
+    1    format ("  Adjusting rescale_inflow flow rate : ",1p2e15.7)
+         
+         if (nid.eq.0.and.(istep.le.100.or.mod(istep,100).eq.0))
+     $   write(6,2) istep,kpass,time,vv,ww,ss-(kpass-1.) ! ss & ss-1
+    2    format(i8,i2,'rescale: ',1p4e14.6)
+         
+         if (kpass.eq.1) then ! RESCALE INFLOW ACCORDING TO S1
+            do i = 1, npts
+               k = ptv(i)
+               uin(k,1,1,1) =  ss*uin(k,1,1,1)
+               vin(k,1,1,1) =  ss*vin(k,1,1,1)
+               win(k,1,1,1) =  ss*win(k,1,1,1)
+            enddo
+            
+            ifield = 1          ! Project into H1, just to be sure....
+            call dsavg(uin)
+            call dsavg(vin)
+            call dsavg(win)
+            
+         endif                  ! End of inflow rescale
+         
+      enddo                     ! End of check / rescale / check loop
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine get_shift (vshift,ptv,ptf,npts,dshift)
+c
+c     sets up pointers to velocity and face points and computes a shift
+c     vector for inflow Recycling BCs based on shift length dshift
+c
+c     note: searches RBC single inlet as 'v  ' -- modify for other cases
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      real    vshift(ldim,1) ! RBC shift vector
+      integer ptv(1), ptf(1) ! RBC velocity and face pointers 
+
+      real dshift
+      integer e,eg,f
+      nxyz = nx1*ny1*nz1
+      nxzf = nx1*nz1*6         ! 2*ndim faces
+
+      call dsset(nx1,ny1,nz1)
+
+      npts = 0
+      ifield = 1
+      do e=1,nelt  ! search for RBC points (as 't  ')!!!
+      do f=1,2*ndim
+        if (cbc(f,e,ifield).eq.'v  ') then
+          iface  = eface1(f)
+          js1    = skpdat(1,iface)
+          jf1    = skpdat(2,iface)
+          jskip1 = skpdat(3,iface)
+          js2    = skpdat(4,iface)
+          jf2    = skpdat(5,iface)
+          jskip2 = skpdat(6,iface)
+
+          k = 0
+          do j2=js2,jf2,jskip2
+          do j1=js1,jf1,jskip1
+            k    = k+1
+            npts = npts+1
+            ptv(npts)   = j1 + nx1*(j2-1)    + nxyz*(e-1)
+            ptf(npts)   = k  + nx1*nz1*(f-1) + nxzf*(e-1)
+            vshift(1,npts) = -unx(k,1,f,e)*dshift
+            vshift(2,npts) = -uny(k,1,f,e)*dshift
+            if (if3d) vshift(3,npts) = -unz(k,1,f,e)*dshift
+          enddo
+          enddo
+       endif
+      enddo
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------

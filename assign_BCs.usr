@@ -1,0 +1,144 @@
+C-----------------------------------------------------------------------
+C  USER SPECIFIED ROUTINE: assign_BCs
+C       DRS - 11/24/2015 - original code
+C
+C       include this in the .usr file to set boundary conditions for the
+C       PSBT
+C       Note: Geometry and boundary conditions are hard wired and they
+C               do not yet account for k and omega scalars
+C       provides:
+C               assign_BCs
+C                       subroutine for setting appropriate boundary
+C                       condition TYPES on element faces based on xyz
+C                       coordinates
+C                       call this in usrdat2
+C       requires:
+C               boundary condition values must still be set manually in
+C               userbc
+C-----------------------------------------------------------------------
+      subroutine assign_BCs
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer i,i0,i1,j,j0,j1,k,k0,k1,e,f,nface
+
+      double precision xmin,xmax,ymin,ymax,zmin,zmax,rr,xr,yr
+      double precision eps
+
+      integer nbc(5)
+      data nbc/5*0/
+
+      data xmin,xmax,xedge,xr /0.0,7.85d-3,1.55d-3,6.30d-3/
+      data ymin,ymax,yedge,yr /0.0,7.85d-3,1.55d-3,6.30d-3/
+      data zmin,zmax,rr,eps /1.625,1.875,4.75d-3,1.0d-8/
+
+102   format(2x,i2,1x,i3,1x,i1,a,a3,a,a3)
+
+      nface=2*ndim
+      do e=1,nelv
+      do f=1,nface
+        call facindr(i0,i1,j0,j1,k0,k1,nx1,ny1,nz1,f) !restricted face index set
+        do i=i0,i1
+        do j=j0,j1
+        do k=k0,k1
+          if(abs(zm1(i,j,k,e)-zmin).le.eps) then !inlet boundary
+            if(cbc(f,e,1).ne.'v  ') then
+              cbc(f,e,1)='v  '
+              cbc(f,e,2)='t  '
+              cbc(f,e,3)='t  '
+              cbc(f,e,4)='t  '
+              nbc(1)=nbc(1)+1
+            endif
+          elseif(abs(zm1(i,j,k,e)-zmax).le.eps) then !outlet boundary
+            if(cbc(f,e,1).ne.'O  ') then
+              cbc(f,e,1)='O  '
+              cbc(f,e,2)='O  '
+              cbc(f,e,3)='O  '
+              cbc(f,e,4)='O  '
+              nbc(2)=nbc(2)+1
+            endif
+          elseif(abs(xm1(i,j,k,e)-xmin).le.eps) then !symmetry boundary
+            if(cbc(f,e,1).ne.'SYM') then
+              cbc(f,e,1)='SYM'
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='I  '
+              cbc(f,e,4)='I  '
+              nbc(3)=nbc(3)+1
+            endif
+          elseif(abs(xm1(i,j,k,e)-xmax).le.eps) then !subchannel edge
+            if(cbc(f,e,1).ne.'W  ') then
+              cbc(f,e,1)='W  '
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='t  '
+              cbc(f,e,4)='t  '
+              nbc(5)=nbc(5)+1
+            endif
+          elseif(abs(ym1(i,j,k,e)-ymin).le.eps) then !other symmetry boundary
+            if(cbc(f,e,1).ne.'SYM') then
+              cbc(f,e,1)='SYM'
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='I  '
+              cbc(f,e,4)='I  '
+              nbc(3)=nbc(3)+1
+            endif
+          elseif(abs(ym1(i,j,k,e)-ymax).le.eps) then !other subchannel edge
+            if(cbc(f,e,1).ne.'W  ') then
+              cbc(f,e,1)='W  '
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='t  '
+              cbc(f,e,4)='t  '
+              nbc(5)=nbc(5)+1
+            endif
+          elseif((abs(xm1(i,j,k,e)-xedge).le.eps).and. !unheated part of the curved surface
+     &    (ym1(i,j,k,e).gt.(ymax-yedge))) then
+            if(cbc(f,e,1).ne.'W  ') then
+              cbc(f,e,1)='W  '
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='t  '
+              cbc(f,e,4)='t  '
+              nbc(5)=nbc(5)+1
+            endif
+          elseif((abs(ym1(i,j,k,e)-yedge).le.eps).and. !other unheated part of the curved surface
+     &    (xm1(i,j,k,e).gt.(xmax-xedge))) then
+            if(cbc(f,e,1).ne.'W  ') then
+              cbc(f,e,1)='W  '
+              cbc(f,e,2)='I  '
+              cbc(f,e,3)='t  '
+              cbc(f,e,4)='t  '
+              nbc(5)=nbc(5)+1
+            endif
+          else 
+            R=sqrt((xr-xm1(i,j,k,e))**2+(yr-ym1(i,j,k,e))**2)
+            if(abs(R-rr).le.1.0d-5) then !curved heated wall (use much lower tolerance)
+              if(cbc(f,e,1).ne.'W  ') then
+                cbc(f,e,1)='W  '
+                cbc(f,e,2)='f  '
+                cbc(f,e,3)='t  '
+                cbc(f,e,4)='t  '
+                nbc(4)=nbc(4)+1
+              endif
+            endif
+          endif
+        enddo
+        enddo
+        enddo
+      enddo
+      enddo
+
+      do i=1,5  !add over all processors
+        nbc(i)=iglsum(nbc(i),1)
+      enddo
+
+      if(nid.eq.0) then
+        write(*,*)
+        write(*,101) 'Set ',nbc(1),' inflow        boundary faces'
+        write(*,101) 'Set ',nbc(2),' outflow       boundary faces'
+        write(*,101) 'Set ',nbc(3),' symmetry      boundary faces'
+        write(*,101) 'Set ',nbc(4),' heated wall   boundary faces'
+        write(*,101) 'Set ',nbc(5),' unheated wall boundary faces'
+        write(*,*)
+      endif
+
+101   format(4x,a,i6,a)
+      return
+      end

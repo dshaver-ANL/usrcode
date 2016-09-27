@@ -1,0 +1,10 @@
+      real walldist,wallshear,wallxyz,dw_min
+      integer wallgid,wallcount,nproc
+
+      common /wall_info/ walldist(lx1,ly1,lz1,lelv)
+     &  ,wallshear(lwf*lx1*lz1)
+     &  ,wallxyz(ldim,lwf*lx1*lz1)
+     &  ,dw_min
+     &  ,nproc
+     &  ,wallcount(lp)
+     &  ,wallgid(lx1,ly1,lz1,lelv)

@@ -1,0 +1,126 @@
+      subroutine print_outflow(rchar,rloc,rcrd,scrd,tcrd,tke,omeg)
+      include 'mpif.h'
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer lxyz,nmax
+      parameter(lxyz=lx1*ly1*lz1)
+      parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
+
+      character rchar
+      integer ifld_k,ifld_o
+      real rloc,rcrd(1),scrd(1),tcrd(1),tke(1),omeg(1)
+
+      character fname*32,cstring*3
+      integer ipoint,npts,aflag,lpts(nmax),gpts(lp),gpos(lp),ierr
+      integer i,i0,i1,j,j0,j1,k,k0,k1
+      real norm(3),fnorm(3),dp,vel
+      real lscrd(nmax),ltcrd(nmax),lvel(nmax),ltke(nmax),lomeg(nmax)
+      real gscrd(nmax),gtcrd(nmax),gvel(nmax),gtke(nmax)
+      real gomeg(nmax)
+
+      data aflag /0/
+      save aflag
+      
+      if(aflag.gt.0) return
+
+      npts=0
+
+      call cfill(norm,0.0,3)
+      if(rchar.eq.'x')then
+        norm(1)=1.0
+        write(cstring,'(a3)') "Y Z"
+      elseif(rchar.eq.'y')then
+        norm(2)=1.0
+        write(cstring,'(a3)') "Z X"
+      elseif(rchar.eq.'z')then
+        norm(3)=1.0
+        write(cstring,'(a3)') "X Y"
+      endif
+
+      rloc=get_nearest_face(rloc,rcrd,norm)
+
+      do ielem=1,nelv
+      do iside=1,2*ldim
+        call get_face_norm(ielem,iside,fnorm)
+        dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)+fnorm(3)*norm(3)
+        if(dabs(1.0-dp).lt.1.0d-8) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
+          i=(i0+i1)/2
+          j=(j0+j1)/2
+          k=(k0+k1)/2
+          ipoint=i+lx1*(j-1)+lx1*ly1*(k-1)+lxyz*(ielem-1)
+          if(dabs(rcrd(ipoint)-rloc).lt.1.0e-8) then
+            do i=i0,i1
+            do j=j0,j1
+            do k=k0,k1
+              ipoint=i+lx1*(j-1)+lx1*ly1*(k-1)+lxyz*(ielem-1)
+              npts=npts+1
+              if(npts.gt.nmax)then
+                aflag=1
+                goto 25
+              endif
+              lpts(npts)=ipoint
+            enddo
+            enddo
+            enddo
+          endif
+        endif
+      enddo
+      enddo
+
+ 25   aflag=iglsum(aflag,1)
+      if(aflag.gt.0) then
+        if(nid.eq.0) then
+          write(*,'(2x,a)')"Warning: Too many points in outflow plane!"
+          write(*,'(5x,a)')"no outflow data will be printed!"
+        endif
+        return
+      endif
+
+      do i=1,npts
+        ipoint=lpts(i)
+        lscrd(i)=scrd(ipoint)
+        ltcrd(i)=tcrd(ipoint)
+        vel=vx(ipoint,1,1,1)*norm(1)+vy(ipoint,1,1,1)*norm(2)
+        if(if3d) vel=vel+vz(ipoint,1,1,1)*norm(3)
+        lvel(i) =vel
+        ltke(i)=tke(ipoint)
+        lomeg(i)=omeg(ipoint)
+      enddo
+
+      call MPI_Gather(npts,1,MPI_INTEGER,gpts,1,MPI_INTEGER,0
+     &                                             ,MPI_COMM_WORLD,ierr)
+      gpos(1)=0
+      do i=2,lp
+        gpos(i)=gpos(i-1)+gpts(i-1)
+      enddo
+
+      call MPI_GatherV(lscrd,npts,MPI_DOUBLE,gscrd,gpts,gpos,MPI_DOUBLE
+     &                                           ,0,MPI_COMM_WORLD,ierr)
+      call MPI_GatherV(ltcrd,npts,MPI_DOUBLE,gtcrd,gpts,gpos,MPI_DOUBLE
+     &                                           ,0,MPI_COMM_WORLD,ierr)
+      call MPI_GatherV(lvel ,npts,MPI_DOUBLE,gvel ,gpts,gpos,MPI_DOUBLE
+     &                                           ,0,MPI_COMM_WORLD,ierr)
+      call MPI_GatherV(ltke ,npts,MPI_DOUBLE,gtke ,gpts,gpos,MPI_DOUBLE
+     &                                           ,0,MPI_COMM_WORLD,ierr)
+      call MPI_GatherV(lomeg,npts,MPI_DOUBLE,gomeg,gpts,gpos,MPI_DOUBLE
+     &                                           ,0,MPI_COMM_WORLD,ierr)
+      npts=iglsum(npts,1)
+
+      if(nid.eq.0) then
+        write(fname,'(a,i3,a)')"outflow.dat"
+        open(unit=10,file=fname,status='unknown',form='formatted')
+        write(10,'(i6,1x,a3,1x,a)')npts,cstring,"vel k omega"
+        do i=1,npts
+          write(10,'(5(ES16.9,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
+     &                                                         ,gomeg(i)
+        enddo
+        close(10)
+        write(*,'(5x,i6,1x,a,a)')
+     &                     npts,"GLL points written to file ",fname
+        write(*,*)
+      endif
+
+      return
+      end

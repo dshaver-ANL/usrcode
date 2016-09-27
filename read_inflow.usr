@@ -1,0 +1,90 @@
+      subroutine read_inflow(fname,uin,tke,omeg)
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer lxyz,nmax
+      parameter(lxyz=lx1*ly1*lz1)
+      parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
+
+      character fname*32
+      real uin(1),tke(1),omeg(1)
+
+      character sdir,tdir
+      integer i,npts,aflag,iset,ntot
+      real scrd(nmax),tcrd(nmax),uf(nmax),kf(nmax),of(nmax)
+
+      if(nid.eq.0) write(*,'(5x,a,1x,a)')
+     & "Setting inflow boundary and initial conditions from file",fname
+
+      aflag=0
+      npts=0
+      iset=0
+      ntot=lxyz*nelv
+      open(unit=25,file=fname,status='old',form='formatted',err=25)
+
+      read(25,*) npts,sdir,tdir
+ 26   if(npts.gt.nmax) then !(26) returning from open file error
+        if(nid.eq.0) write(*,'(7x,a)')
+     &    "Warning: Too many points in inflow file"
+        aflag=1
+      endif
+      aflag=iglsum(aflag,1)
+      if(aflag.gt.0) then
+        if(nid.eq.0)then
+          write(*,'(9x,a)')"inflow data NOT set!"
+          write(*,*)
+        endif
+        return
+      endif
+
+      do i=1,npts
+        read(25,*) scrd(i),tcrd(i),uf(i),kf(i),of(i)
+      enddo
+      close(25)
+
+      if(sdir.eq.'Y')then !uf=ux, compare y,z coordinates
+        call set_bc_arrays(ym1,zm1,uin,tke,omeg,ntot
+     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+      elseif(sdir.eq.'Z')then !uf=uy, compare z,x coordinates
+        call set_bc_arrays(zm1,xm1,uin,tke,omeg,ntot
+     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+      else !uf=uz, compare x,y coordinates
+        call set_bc_arrays(xm1,ym1,uin,tke,omeg,ntot
+     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+      endif
+
+      iset=iglsum(iset,1)
+      if(nid.eq.0)then
+        write(*,'(7x,a,1x,i9,1x,a)') "set",iset,"points"
+        write(*,*)
+      endif
+
+      return
+
+ 25   if(nid.eq.0) write(*,'(7x,a,a)')"Unable to open file ",fname
+      aflag=1
+      goto 26
+
+      end
+C-----------------------------------------------------------------------
+      subroutine set_bc_arrays(s1,t1,u1,k1,o1,n1,s2,t2,u2,k2,o2,n2,iset)
+
+      real s1(1),t1(1),u1(1),k1(1),o1(1)
+      real s2(1),t2(1),u2(1),k2(1),o2(1)
+      integer n1,n2,i,j
+
+      do i=1,n1
+        do j=1,n2
+          if((abs(s1(i)-s2(j)).lt.1.0d-6).and.
+     &                                (abs(t1(i)-t2(j)).lt.1.0d-6)) then
+            u1(i)=u2(j)
+            k1(i)=k2(j)
+            o1(i)=o2(j)
+            iset=iset+1
+            goto 25
+          endif
+        enddo
+ 25   enddo
+
+      return
+      end

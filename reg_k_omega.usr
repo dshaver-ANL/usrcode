@@ -1,0 +1,353 @@
+C-----------------------------------------------------------------------
+C  USER SPECIFIED ROUTINE: reg_k_omega
+C       SMA - original code
+C	DRS - 10/02/2015 - separated from temperature terms, reorganized
+C                          and made modular
+C	DRS - 02/04/2016 - played around with the limits, works for
+C			   Pn-Pn formulation, but not with IFSTRS=T
+C			   init_ko_ifld and update_vis_turb have been 
+C			   deprecated, energy source term corrected
+C	DRS - 03/02/2016 - Combined with regularized k-omega code from
+C			   AT
+C	DRS - 03/16/2016 - all gradient variables have been reconciled
+C			   on the element faces by calling opdssum
+C
+C	include this in the .usr file to add the k-omega model
+C	Note: this will probably have to be adjusted to account for 
+C		the two-fluid model
+C       provides:
+C		reg_k_omega
+C			subroutine for computing the source terms
+C			for the k-omega model and the eddy viscosity
+C			call this in usrchk
+C		omega_base
+C			subroutine for computing the omega base terms,
+C			omega_w,gradow,lapow.  For constant properties
+C			and a non-deforming mesh, this only needs to be
+C 			called once.
+C	requires:
+C		wd(lx1,ly1,lz1,lelv) array specifying the distance to 
+C			the nearest wall (passed to omega_base)
+C               dens(lx1,ly1,lz1,lelv) array specifying fluid density
+C               visc(lx1,ly1,lz1,lelv) the same for viscosity (mu)
+C		omega_in - value of omega on the inlet boundary
+C		nu_in - constant reference kinematic viscosity (used to
+C			evaluate omega_w since omega_w is assumed not to
+C			vary with time)
+C-----------------------------------------------------------------------
+      subroutine reg_k_omega(velu,velv,velw,wd,dens,visc,tke,omega
+     &                           ,omega_in,nu_in,src_k,src_o,src_t,mu_t)
+      include 'SIZE'
+      include 'TOTAL'
+
+      parameter (lxyz=lx1*ly1*lz1,lxyze=lxyz*lelv)
+      integer ielem,i,j,k,ipoint,iclip_k,ilim_k,iclip_o,ilim_o,n
+      logical ifprint
+      real velu(1),velv(1),velw(1),wd(1),tke(1),omega(1),dens(1),visc(1)
+      real src_k(1),src_o(1),src_t(1),mu_t(1)
+      real tke0,omega0,rho,mu,vist,omega_hat,omega_in,nu_in,vistmax
+      real omega_w(lxyze),gradow(lxyze,3),lapow(lxyze)
+      real gradu(lxyze,3,3),gradk(lxyze,3),grado(lxyze,3),divu
+      real dif_o(lxyze),graddo(lxyze,3)
+      real prod_ratio,G_phi,Y_phi !source and sink terms for k & omega
+      real tau_ij,S_ki,O_ij,O_jk !stress, strain, and vorticity tensor components
+      real :: four15ths=4.0d0/1.5d1
+      real :: twothirds=2.0d0/3.0d0
+      real :: tiny=1.0d-20 !very small number, in case divide by zero
+      real :: R_Bi=1.25d-1 !1/R_beta
+      real :: R_ki=1.0d0/6.0d0 !1/R_k
+      real :: R_oi=2.0d1/5.9d1 !1/R_omega
+      real :: beta_st_inf=9.0d-2 !C_mu??
+      real :: beta_i=7.2d-2 !other constants
+      real :: alph_inf=5.2d-1
+      real :: alph_0=1.0d0/9.0d0
+      real :: alph_st_inf=1.0d0
+      real f_beta,chi,Re_t,beta_st,alph,alph_st,alph_st_0
+      parameter (prod_ratio=5.0d1)
+
+      save omega_w,gradow,lapow
+
+      n=lxyz*nelv
+
+      alph_st_0=beta_i/3.0d0
+      sigma_oi=5.0d-1
+
+      iclip_k=0
+      ilim_k=0
+      iclip_o=0
+      ilim_o=0
+
+      if(istep.lt.1)
+     &           call omega_base(wd,nu_in,omega_in,omega_w,gradow,lapow)
+
+c     find gradients of the necessary primitive variables
+      call gradm1(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),velu) !grad u
+      call gradm1(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),velv) !grad v
+      call gradm1(gradk(1,1),gradk(1,2),gradk(1,3),tke)        !grad tke
+      call gradm1(grado(1,1),grado(1,2),grado(1,3),omega)      !grad omega'
+
+c     multiply gradients by the mass matrix
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),bm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),bm1)
+      call opcolv(gradk(1,1),gradk(1,2),gradk(1,3),bm1)
+      call opcolv(grado(1,1),grado(1,2),grado(1,3),bm1)
+
+c     reconcile gradients at element boundaries
+      call opdssum(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3))
+      call opdssum(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3))
+      call opdssum(gradk(1,1),gradk(1,2),gradk(1,3))
+      call opdssum(grado(1,1),grado(1,2),grado(1,3))
+
+c     multiply gradients by the inverse mass matrix
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),binvm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),binvm1)
+      call opcolv(gradk(1,1),gradk(1,2),gradk(1,3),binvm1)
+      call opcolv(grado(1,1),grado(1,2),grado(1,3),binvm1)
+
+c     do the above for w-velocity
+      if(if3d) then
+        call gradm1(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),velw)
+        call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),bm1)
+        call opdssum(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3))
+        call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),binvm1)
+      endif
+
+      do ipoint=1,n !for every point in the velocity mesh
+
+c       total gradient of omega is the sum of the two components
+        grado(ipoint,1)=grado(ipoint,1)+gradow(ipoint,1)
+        grado(ipoint,2)=grado(ipoint,2)+gradow(ipoint,2)
+        grado(ipoint,3)=grado(ipoint,3)+gradow(ipoint,3)
+
+        if(tke(ipoint).lt.0.0) then !limit on tke to keep it positive
+          tke0=1.0d-2*abs(tke(ipoint)) !don't actually change the variables in memory
+          tke(ipoint)=tke0
+          ilim_k=ilim_k+1
+        else
+          tke0=tke(ipoint)
+        endif
+
+c       omega_hat=omega(ipoint)+omega_w(ipoint)
+c       if(omega_hat.lt.0.0) then !limit on omega to keep it positive
+c         omega0=1.0d-2*dabs(omega_hat)
+c         ilim_o=ilim_o+1
+c       else
+c         omega0=omega_hat
+c       endif
+
+        if(omega(ipoint).lt.0.0) then !limit on omega to keep it positive
+          omega0=1.0d-2*abs(omega(ipoint))
+          omega(ipoint)=omega0
+          ilim_o=ilim_o+1
+        endif
+        omega0=omega(ipoint)+omega_w(ipoint)
+
+c       if(iflomach)then  !still needs to be tested
+c         divu=gradu(ipoint,1,1)+gradu(ipoint,2,2)
+c         if(if3d) divu=divu+gradu(ipoint,3,3)
+c       else
+          divu=0.0
+c       endif
+
+        if(iflomach) then
+          rho=dens(ipoint)
+          mu=visc(ipoint)
+        else
+          rho=dens(1)
+          mu=visc(1)
+        endif
+        vistmax=5.0d3*mu
+
+        Re_t=rho*tke0/max(mu*omega0,tiny)
+        alph_st=alph_st_inf*(alph_st_0+Re_t*R_ki)/(1.0d0+Re_t*R_ki)
+        vist=rho*alph_st*tke0/omega0
+        vist=min(vist,vistmax) !limit on eddy viscosity
+        mu_t(ipoint)=vist !update eddy viscosity
+
+cccccccccccccccccccccccccccccccccccccccccccccccccc
+c   k source and sink terms (phi=k)
+cccccccccccccccccccccccccccccccccccccccccccccccccc
+        G_phi=0.0 !build the k source term
+        do i=1,ldim
+          do j=1,ldim
+            tau_ij=vist*(gradu(ipoint,i,j)+gradu(ipoint,j,i))
+            if(i.eq.j) tau_ij=tau_ij-twothirds*(vist*divu+rho*tke0)
+            G_phi=G_phi+gradu(ipoint,i,j)*tau_ij
+          enddo
+        enddo
+
+        chi=0.0 !build the chi_k term
+        do i=1,ldim
+          chi=chi+gradk(ipoint,i)*grado(ipoint,i)
+        enddo
+        chi=chi/max(omega0**3,tiny)
+
+        if(chi.le.0) then !f_beta_star
+          f_beta=1.0d0
+        else
+          f_beta=(1+6.80d2*chi**2)/(1+4.0d2*chi**2)
+        endif
+
+        beta_st=beta_st_inf*f_beta*((four15ths+(R_Bi*Re_t)**4)/
+     &    (1.0d0+(R_Bi*Re_t)**4))
+
+        Y_phi=rho*beta_st*tke0*omega0 !k sink term (dissipation of tke)
+
+        src_t(ipoint)=Y_phi !viscous dissipation term (turns tke into heat)
+
+        if(G_phi.gt.prod_ratio*Y_phi) then !turbulence production clip
+          iclip_k=iclip_k+1
+          G_phi=prod_ratio*Y_phi
+        endif
+
+        src_k(ipoint)=G_phi-Y_phi
+
+cccccccccccccccccccccccccccccccccccccccccccccccccc
+c   omega source and sink terms (phi=o)
+cccccccccccccccccccccccccccccccccccccccccccccccccc
+        alph=(alph_inf*(alph_0+Re_t*R_oi))/(alph_st*(1.0d0+Re_t*R_oi))
+
+        G_phi=G_phi*omega0/max(tke0,tiny)*alph !G_phi is already G_k from above
+
+        chi=0.0 !build the chi_omega term
+        if(if3d) then !Pope Correction for 2D flows
+          do i=1,ldim
+            do j=1,ldim
+              O_ij=5.0d-1*(gradu(ipoint,i,j)-gradu(ipoint,j,i)) !vorticity
+              do k=1,ldim
+                O_jk=5.0d-1*(gradu(ipoint,j,k)-gradu(ipoint,k,j)) !vorticity
+                S_ki=5.0d-1*(gradu(ipoint,k,i)+gradu(ipoint,i,k)) !strain
+                chi=chi+O_ij*O_jk*S_ki
+              enddo
+            enddo
+          enddo
+          chi=abs(chi/max((beta_st_inf*omega0)**3,tiny))
+        endif
+
+        f_beta=(1.0d0+7.0d1*chi)/(1.0d0+8.0d1*chi)
+
+        Y_phi=rho*beta_i*f_beta*omega0**2
+
+        if(G_phi.gt.prod_ratio*Y_phi) then !omega production clip
+          iclip_o=iclip_o+1
+          G_phi=prod_ratio*Y_phi
+        endif
+
+        src_o(ipoint)=G_phi-Y_phi
+
+        dif_o(ipoint)=mu+vist*sigma_oi
+      enddo !1..ipoint..n
+
+c     add dif_o times laplace omega_w to source term
+      call addcol3(src_o,dif_o,lapow,n)
+
+c     build grad dif_o
+      call gradm1(graddo(1,1),graddo(1,2),graddo(1,3),dif_o)
+      call opcolv(graddo(1,1),graddo(1,2),graddo(1,3),bm1)
+      call opdssum(graddo(1,1),graddo(1,2),graddo(1,3))
+      call opcolv(graddo(1,1),graddo(1,2),graddo(1,3),binvm1)
+
+c     subtract rho u from grad dif_o
+      if(iflomach) then
+        call subcol3(graddo(1,1),dens,velu,n)
+        call subcol3(graddo(1,2),dens,velv,n)
+        if(if3d) call subcol3(graddo(1,3),dens,velw,n)
+      else
+        do ipoint=1,n
+          graddo(ipoint,1)=graddo(ipoint,1)-velu(ipoint)*dens(1)
+          graddo(ipoint,2)=graddo(ipoint,2)-velv(ipoint)*dens(1)
+          if(if3d)graddo(ipoint,3)=graddo(ipoint,3)-velw(ipoint)*dens(1)
+        enddo
+      endif
+
+c     add (grad dif_o - rho u) dot grad omega_w to source term
+      call addcol3(src_o,graddo(1,1),gradow(1,1),n)
+      call addcol3(src_o,graddo(1,2),gradow(1,2),n)
+      if(if3d) call addcol3(src_o,graddo(1,3),gradow(1,3),n)
+
+      iclip_k=iglsum(iclip_k,1)
+      ilim_k=iglsum(ilim_k,1)
+      iclip_o=iglsum(iclip_o,1)
+      ilim_o=iglsum(ilim_o,1)
+
+      if((iclip_k+ilim_k+clip_o+ilim_o).gt.0) then
+        ifprint=.true.
+      else
+        ifprint=.false.
+      endif
+
+      if(nid.eq.0.and.ifprint) then
+        if(iclip_k.gt.0)
+     &    write(*,101) '  TKE production clipped on ',iclip_k,' points'
+        if(ilim_k.gt.0)
+     &    write(*,101) '  TKE limited on ',ilim_k,' points'
+        if(iclip_o.gt.0)
+     &    write(*,101) 'Omega production clipped on ',iclip_o,' points'
+        if(ilim_o.gt.0)
+     &    write(*,101) 'Omega limited on ',ilim_o,' points'
+        write(*,*)
+      endif
+
+101    format(a32,i9,a)
+
+      end
+c-----------------------------------------------------------------------
+      subroutine omega_base(wd,nu_in,omega_in,omega_w,gradow,lapow)
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer lxyz,lxyze
+      parameter (lxyz=lx1*ly1*lz1,lxyze=lxyz*lelv)
+      integer i,j,ntot
+      real omega_in,nu_in,wd(1),omega_w(1),gradow(lxyze,3),lapow(1)
+      real gradphi(lxyze,3),gradowsq(lxyze)
+      real Cfcon,expn,beta0,nu,delfp,delsfp,omega_max
+      real yw,ymin,ywm2,ywm3,ywm4
+
+      ntot=lxyz*nelv
+
+      beta0=7.2d-2
+      expn=-2.0d0
+      omega_max=1.0d3*omega_in
+      Cfcon=6.0d0*nu_in/beta0
+
+      call gradm1(gradow(1,1),gradow(1,2),gradow(1,3),wd)
+      call opcolv(gradow(1,1),gradow(1,2),gradow(1,3),bm1)
+      call opdssum(gradow(1,1),gradow(1,2),gradow(1,3))
+      call opcolv(gradow(1,1),gradow(1,2),gradow(1,3),binvm1)
+
+      call gradm1(gradphi(1,1),gradphi(1,2),gradphi(1,3),gradow(1,1))
+      call copy(lapow,gradphi(1,1),ntot)
+      call gradm1(gradphi(1,1),gradphi(1,2),gradphi(1,3),gradow(1,2))
+      call add2(lapow,gradphi(1,2),ntot)
+      call gradm1(gradphi(1,1),gradphi(1,2),gradphi(1,3),gradow(1,3))
+      call add2(lapow,gradphi(1,3),ntot)
+      
+      call vdot3(gradowsq,gradow(1,1),gradow(1,2),gradow(1,3)
+     &                   ,gradow(1,1),gradow(1,2),gradow(1,3),ntot)
+
+      do i=1,ntot
+        yw=wd(i)
+        ymin=sqrt(Cfcon/omega_max)
+        if(yw.gt.ymin) then
+          ywm2=1.0d0/(yw*yw)
+          ywm3=ywm2/yw
+          ywm4=ywm2*ywm2
+        else !don't let the source terms go to zero
+          ywm2=omega_max/Cfcon
+          ywm3=ywm2/ymin
+          ywm4=ywm2*ywm2
+        endif
+
+        omega_w(i)=Cfcon*ywm2
+        delfp=expn*Cfcon*ywm3
+        gradow(i,1)=delfp*gradow(i,1)
+        gradow(i,2)=delfp*gradow(i,2)
+        if(if3d)gradow(i,3)=delfp*gradow(i,3)
+        delsfp=expn*(expn-1.0)*Cfcon*ywm4
+        lapow(i)=delsfp*gradowsq(i)+delfp*lapow(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
