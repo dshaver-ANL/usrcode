@@ -120,7 +120,7 @@ c       total gradient of omega is the sum of the two components
         grado(ipoint,3)=grado(ipoint,3)+gradow(ipoint,3)
 
         if(tke(ipoint).lt.0.0) then !limit on tke to keep it positive
-          tke0=1.0d-2*abs(tke(ipoint)) !don't actually change the variables in memory
+          tke0=1.0d-2*abs(tke(ipoint))
           tke(ipoint)=tke0
           ilim_k=ilim_k+1
         else
@@ -306,7 +306,7 @@ c-----------------------------------------------------------------------
 
       ntot=lxyz*nelv
 
-      beta0=7.2d-2
+      beta0=9.0d-2
       expn=-2.0d0
       omega_max=1.0d3*omega_in
       Cfcon=6.0d0*nu_in/beta0

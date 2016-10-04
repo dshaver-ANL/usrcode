@@ -394,7 +394,7 @@ C-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      real wd(1)
+      real wd(nx1,ny1,nz1,nelv)
       integer ielem,iside,i,i0,i1,j,j0,j1,k,k0,k1
       real dwmax
 
@@ -430,7 +430,7 @@ C-----------------------------------------------------------------------
             do i=i0,i1
             do j=j0,j1
             do k=k0,k1
-              dwmax=max(dwmax,wd(i))
+              dwmax=max(dwmax,wd(i,j,k,ielem))
             enddo
             enddo
             enddo
@@ -510,24 +510,31 @@ C-----------------------------------------------------------------------
       include 'WZ'
       include 'ZPER'
 
-      real phi(nx1*ny1,nz1,lelv),wrt(nx1*ny1,nz1,lelv),phia(nz1,lelz)
-      real w1(lz1,lelz),w2(lz1,lelz) !work arrays
+      real phi(nx1*ny1,nz1,nelv),wrt(nx1*ny1,nz1,nelv),phia(nz1,nelz)
+      real w1(nz1,nelz),w2(nz1,nelz) !work arrays
 
       integer e,eg,ez,melxy,nz,i,k
       real zz,aa
 
-      melxy=lelx*lely !number of elements in the plane
-      nz=nz1*lelz !number of z-slices
+      melxy=nelx*nely !number of elements in the plane
+      nz=nz1*nelz !number of z-slices
 
-      if((melxy.lt.2).or.(lelz.lt.2))then
-        write(*,*)
-        write(*,256) melxy,lelz
-        write(*,*)
+      if(melxy.lt.1)then
+        if(nio.eq.0)write(*,256)'nelx*nely'
+        return
+      elseif(nelz.lt.1) then
+        if(nio.eq.0)write(*,256)'nelz'
+        return
+      elseif(melxy.gt.lelx*lely) then
+        if(nio.eq.0)write(*,257)'nelx*nely','lelx*lely'
+        return
+      elseif(nelz.gt.lelz) then
+        if(nio.eq.0)write(*,257)'nelz','lelz'
         return
       endif
 
- 256  format(5x,'ERROR: lelx*lely and lelz must be greater than 1!'
-     &                                                        ,1x,i5,i5)
+ 256  format(5x,'ERROR: ',a,' must be at least 1!')
+ 257  format(5x,'ERROR: ',a,' must be less than ',a,'!')
 
       call rzero(phia,nz)
       call rzero(w1,nz)
