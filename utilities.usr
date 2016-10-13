@@ -543,12 +543,13 @@ C-----------------------------------------------------------------------
         eg=lglel(e)
         ez=1+(eg-1)/melxy !z-slice id
         do k=1,nz1
-        do i=1,nx1*ny1
-          zz=(1.0-zgm1(k,3))/2.0
-          aa=zz*area(i,1,5,e)+(1.0-zz)*area(i,1,6,e)
-          w1(k,ez)=w1(k,ez)+aa*wrt(i,k,e)
-          phia(k,ez)=phia(k,ez)+aa*wrt(i,k,e)*phi(i,k,e)
-        enddo
+          do i=1,nx1*ny1
+            zz=(1.0-zgm1(k,3))/2.0
+            aa=zz*area(i,1,5,e)+(1.0-zz)*area(i,1,6,e)
+            w1(k,ez)=w1(k,ez)+aa*wrt(i,k,e)
+            phia(k,ez)=phia(k,ez)+aa*wrt(i,k,e)*phi(i,k,e)
+          enddo
+          if(abs(w1(k,ez)).lt.1.0d-10) w1(k,ez)=1.0d-10
         enddo
       enddo
 
