@@ -9,7 +9,7 @@
 
       character rchar
       integer ifld_k,ifld_o
-      real rloc,rcrd(1),scrd(1),tcrd(1),tke(1),omeg(1)
+      real rloc,rcrd(1),scrd(1),tcrd(1),tke(1),omeg(1),tmploc
 
       character fname*32,cstring*3
       integer ipoint,npts,aflag,lpts(nmax),gpts(lp),gpos(lp),ierr
@@ -38,7 +38,8 @@
         write(cstring,'(a3)') "X Y"
       endif
 
-      rloc=get_nearest_face(rloc,rcrd,norm)
+      tmploc=get_nearest_face(rloc,rcrd,norm)
+      write(*,*) rloc,tmploc
 
       do ielem=1,nelv
       do iside=1,2*ldim
@@ -113,7 +114,7 @@
         open(unit=10,file=fname,status='unknown',form='formatted')
         write(10,'(i6,1x,a3,1x,a)')npts,cstring,"vel k omega"
         do i=1,npts
-          write(10,'(5(ES16.9,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
+          write(10,'(5(ES17.10,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
      &                                                         ,gomeg(i)
         enddo
         close(10)
