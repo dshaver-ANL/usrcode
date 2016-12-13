@@ -1,0 +1,46 @@
+      subroutine restart_2P
+      implicit none
+      include 'SIZE' 
+      include 'SOLN'
+      include 'INPUT'
+
+      character*80 fname
+      character*80 s80
+      integer ntot,iph,ix,iy,iz,e
+
+      ntot=nx1*ny1*nz1*nelt
+
+      do iph=1,nphases
+        call blank(fname,80)
+        call blank(s80,80)
+        write(fname,'(a2,i1,a14)') 'vk',iph,'restart.f00000'
+        s80=trim(fname)
+        call bcast(s80,80)
+        call chcopy(initc,s80,80)
+        call setics
+
+        call copy(vkx(1,1,1,1,iph),vx,ntot)
+        call copy(vky(1,1,1,1,iph),vy,ntot)
+        call copy(vkz(1,1,1,1,iph),vz,ntot)
+      enddo
+
+      call blank(s80,80)
+      s80=trim('restart.f00000')
+      call bcast(s80,80)
+      call chcopy(initc,s80,80)
+      call setics
+
+      do e=1,nelv
+      do iz=1,nz1
+      do iy=1,ny1
+      do ix=1,nx1
+        call tranprop(ix,iy,iz,e)
+      enddo
+      enddo
+      enddo
+      enddo
+
+      return
+      end
+
+
