@@ -19,21 +19,25 @@ C			subroutine for computing the source terms
 C			for the k-omega model and the eddy viscosity
 C			call this in usrchk
 C-----------------------------------------------------------------------
-      subroutine standard_k_omega(velu,velv,velw,tke,omega,dens,visc
+      subroutine standard_k_omega(velu,velv,velw,dens,visc,tke,omega
      &                                          ,src_k,src_o,src_t,mu_t)
+      implicit none
       include 'SIZE'
-      include 'TOTAL'
+      include 'INPUT'
+      include 'MASS'
 
+      integer iglsum
       integer lxyz,lxyze
       parameter (lxyz=lx1*ly1*lz1,lxyze=lxyz*lelv)
-      integer ielem,i,j,k,ipoint,iclip_k,ilim_k,iclip_o,ilim_o
+      integer ielem,i,j,k,ipt,iclip_k,ilim_k,iclip_o,ilim_o,n
       logical ifprint
       real velu(1),velv(1),velw(1),tke(1),omega(1),dens(1),visc(1)
       real src_k(1),src_o(1),src_t(1),mu_t(1)
-      real tke0,omega0,rho,mu,vist
+      real tke0,omega0,rho,mu,vist,vistmax
       real gradu(lxyze,3,3),gradk(lxyze,3),grado(lxyze,3)
-      real G_phi,Y_phi !source and sink terms for k & omega
-      real S_ij,S_jk,S_ki !strain and vorticity tensors
+      real prod_ratio,G_phi,Y_phi !source and sink terms for k & omega
+      real tau_ij,S_ki,O_ij,O_jk !stress, strain, and vorticity components
+      real :: twothirds=2.0d0/3.0d0
       real :: four15ths=4.0d0/1.5d1
       real :: tiny=1.0d-20 !very small number, in case divide by zero
       real :: R_Bi=1.25d-1 !1/R_beta
@@ -45,6 +49,9 @@ C-----------------------------------------------------------------------
       real :: alph_0=1.0d0/9.0d0
       real :: alph_st_inf=1.0d0
       real f_beta,chi,Re_t,beta_st,alph,alph_st,alph_st_0
+      parameter (prod_ratio=5.0d1)
+
+      n=nx1*ny1*nz1*nelv
 
       alph_st_0=beta_i/3.0d0
 
@@ -80,30 +87,38 @@ C-----------------------------------------------------------------------
         call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),binvm1)
       endif
 
-      do ipoint=1,lxyz*nelv !for every point in the element
+      do ipt=1,lxyz*nelv !for every point in the element
 
-        if(tke(ipoint).lt.0.0) then !limit on tke to keep it positive
-          tke0=1.0d-2*dabs(tke(ipoint)) !don't actually change the variables in memory
+        if(tke(ipt).lt.0.0) then !limit on tke to keep it positive
+          tke0=1.0d-2*abs(tke(ipt))
+          tke(ipt)=tke0
           ilim_k=ilim_k+1
         else
-          tke0=tke(ipoint)
+          tke0=tke(ipt)
         endif
 
-        if(omega(ipoint).lt.0.0) then !limit on omega to keep it positive
-          omega0=1.0d-2*dabs(omega(ipoint))
+        if(omega(ipt).lt.0.0) then !limit on omega to keep it positive
+          omega0=1.0d-2*abs(omega(ipt))
+          omega(ipt)=omega0
           ilim_o=ilim_o+1
         else
-          omega0=omega(ipoint)
+          omega0=omega(ipt)
         endif
 
-        rho=dens(ipoint)
-        mu=visc(ipoint)
+        if(iflomach) then
+          rho=dens(ipt)
+          mu=visc(ipt)
+        else
+          rho=dens(1)
+          mu=visc(1)
+        endif
+        vistmax=5.0d3*mu
 
-        Re_t=rho*tke0/dmax1(mu*omega0,tiny)
+        Re_t=rho*tke0/(mu*omega0)
         alph_st=alph_st_inf*(alph_st_0+Re_t*R_ki)/(1.0d0+Re_t*R_ki)
-        vist=rho*alph_st*tke0/dmax1(omega0,tiny)
-        vist=min(vist,5.0d3*mu)
-        mu_t(ipoint)=vist !update eddy viscosity
+        vist=rho*alph_st*tke0/omega0
+        vist=min(vist,vistmax)
+        mu_t(ipt)=vist !update eddy viscosity
 
 cccccccccccccccccccccccccccccccccccccccccccccccccc
 c   k source and sink terms (phi=k)
@@ -111,15 +126,15 @@ cccccccccccccccccccccccccccccccccccccccccccccccccc
         G_phi=0.0 !build the k source term
         do i=1,ldim !ignore terms in dimensions that don't exist
           do j=1,ldim
-            S_ij=5.0d-1*(gradu(ipoint,i,j)+gradu(ipoint,j,i))
-            G_phi=G_phi+S_ij*S_ij !don't bother with the squaring of the sqrt
+            tau_ij=vist*(gradu(ipt,i,j)+gradu(ipt,i,j))
+            if(i.eq.j) tau_ij=tau_ij-twothirds*rho*tke0
+            G_phi=G_phi+gradu(ipt,i,j)*tau_ij !don't bother with the squaring of the sqrt
           enddo
         enddo
-        G_phi=G_phi*vist*2.0d0
 
         chi=0.0 !build the chi_k term
         do i=1,ldim
-          chi=chi+gradk(ipoint,i)*grado(ipoint,i)
+          chi=chi+gradk(ipt,i)*grado(ipt,i)
         enddo
         chi=chi/dmax1(omega0**3,tiny)
 
@@ -132,64 +147,58 @@ cccccccccccccccccccccccccccccccccccccccccccccccccc
         beta_st=beta_st_inf*f_beta*((four15ths+(R_Bi*Re_t)**4)/
      &    (1.0d0+(R_Bi*Re_t)**4))
 
-        Y_phi=dabs(rho*beta_st*tke0*omega0) !k sink term (dissipation of tke)
+        Y_phi=rho*beta_st*tke0*omega0 !k sink term (dissipation of tke)
 
-        src_t(ipoint)=Y_phi !viscous dissipation term (turns tke into heat)
+        src_t(ipt)=Y_phi !viscous dissipation term (turns tke into heat)
 
-        if(G_phi.gt.5.0d1*Y_phi) then !turbulence production clip
+        if(G_phi.gt.prod_ratio*Y_phi) then !turbulence production clip
           iclip_k=iclip_k+1
-          G_phi=5.0d1*Y_phi
+          G_phi=prod_ratio*Y_phi
         endif
 
-c       G_k(ipoint,1,1,ielem)=G_phi !debug arrays
-c       Y_k(ipoint,1,1,ielem)=Y_phi
-
-        src_k(ipoint)=G_phi-Y_phi
+        src_k(ipt)=G_phi-Y_phi
 
 cccccccccccccccccccccccccccccccccccccccccccccccccc
 c   omega source and sink terms (phi=o)
 cccccccccccccccccccccccccccccccccccccccccccccccccc
         alph=(alph_inf*(alph_0+Re_t*R_oi))/(alph_st*(1.0d0+Re_t*R_oi))
 
-        G_phi=G_phi*omega0/dmax1(tke0,tiny)*alph !G_phi is already G_k from above
+        G_phi=G_phi*omega0/tke0*alph !G_phi is already G_k from above
 
         chi=0.0 !build the chi_omega term
         if(if3d) then !Pope Correction for 2D flows
           do i=1,ldim
             do j=1,ldim
-              S_ij=5.0d-1*(gradu(ipoint,i,j)-gradu(ipoint,j,i)) !actually OMEGA
+              O_ij=5.0d-1*(gradu(ipt,i,j)-gradu(ipt,j,i)) !vorticity
               do k=1,ldim
-                S_jk=5.0d-1*(gradu(ipoint,j,k)-gradu(ipoint,k,j)) !also OMEGA
-                S_ki=5.0d-1*(gradu(ipoint,k,i)+gradu(ipoint,i,k)) !really S this time
-                chi=chi+S_ij*S_jk*S_ki
+                O_jk=5.0d-1*(gradu(ipt,j,k)-gradu(ipt,k,j)) !vorticity
+                S_ki=5.0d-1*(gradu(ipt,k,i)+gradu(ipt,i,k)) !strain
+                chi=chi+O_ij*O_jk*S_ki
               enddo
             enddo
           enddo
-          chi=dabs(chi/dmax1((beta_st_inf*omega0)**3,tiny))
+          chi=abs(chi/max((beta_st_inf*omega0)**3,tiny))
         endif
 
         f_beta=(1.0d0+7.0d1*chi)/(1.0d0+8.0d1*chi)
 
         Y_phi=rho*beta_i*f_beta*omega0**2
 
-        if(G_phi.gt.5.0d1*Y_phi) then !omega production clip
+        if(G_phi.gt.prod_ratio*Y_phi) then !omega production clip
           iclip_o=iclip_o+1
-          G_phi=5.0d1*Y_phi
+          G_phi=prod_ratio*Y_phi
         endif
 
-c       G_o(ipoint,1,1,ielem)=G_phi !debug arrays
-c       Y_o(ipoint,1,1,ielem)=Y_phi
+        src_o(ipt)=G_phi-Y_phi
 
-        src_o(ipoint)=G_phi-Y_phi
-
-      enddo !1..ipoint..lxyz
+      enddo !1..ipt..n
 
       iclip_k=iglsum(iclip_k,1)
       ilim_k=iglsum(ilim_k,1)
       iclip_o=iglsum(iclip_o,1)
       ilim_o=iglsum(ilim_o,1)
 
-      if((iclip_k+ilim_k+clip_o+ilim_o).gt.0) then
+      if((iclip_k+ilim_k+iclip_o+ilim_o).gt.0) then
         ifprint=.true.
       else
         ifprint=.false.
@@ -207,7 +216,7 @@ c       Y_o(ipoint,1,1,ielem)=Y_phi
         write(*,*)
       endif
 
-101    format(4x,a,i7,a)
+101    format(a32,i9,a)
 
       end
 c-----------------------------------------------------------------------

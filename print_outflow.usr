@@ -39,7 +39,6 @@
       endif
 
       tmploc=get_nearest_face(rloc,rcrd,norm)
-      write(*,*) rloc,tmploc
 
       do ielem=1,nelv
       do iside=1,2*ldim
@@ -51,7 +50,7 @@
           j=(j0+j1)/2
           k=(k0+k1)/2
           ipoint=i+lx1*(j-1)+lx1*ly1*(k-1)+lxyz*(ielem-1)
-          if(dabs(rcrd(ipoint)-rloc).lt.1.0e-8) then
+          if(dabs(rcrd(ipoint)-tmploc).lt.1.0d-8) then
             do i=i0,i1
             do j=j0,j1
             do k=k0,k1
@@ -114,7 +113,7 @@
         open(unit=10,file=fname,status='unknown',form='formatted')
         write(10,'(i6,1x,a3,1x,a)')npts,cstring,"vel k omega"
         do i=1,npts
-          write(10,'(5(ES17.10,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
+          write(10,'(5(ES19.12,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
      &                                                         ,gomeg(i)
         enddo
         close(10)

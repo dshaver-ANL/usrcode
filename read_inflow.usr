@@ -6,7 +6,7 @@
       parameter(lxyz=lx1*ly1*lz1)
       parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
 
-      character fname*32
+      character*16 fname
       real uin(1),tke(1),omeg(1)
 
       character sdir,tdir
@@ -37,10 +37,17 @@
         return
       endif
 
+      if(nid.eq.0) then
+        write(*,'(7x,a,i5,a)')'reading ',npts,' points'
+        write(*,*)
+      endif
       do i=1,npts
         read(25,*) scrd(i),tcrd(i),uf(i),kf(i),of(i)
+        if(nid.eq.0.and.npts.le.300) write(*,'(i3,5(es19.12))')
+     &     i,scrd(i),tcrd(i),uf(i),kf(i),of(i)
       enddo
       close(25)
+      if(nid.eq.0) write(*,*)
 
       if(sdir.eq.'Y')then !uf=ux, compare y,z coordinates
         call set_bc_arrays(ym1,zm1,uin,tke,omeg,ntot

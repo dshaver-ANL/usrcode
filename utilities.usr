@@ -560,6 +560,97 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine x_planar_average(phia,phi,w1,w2)
+      include 'SIZE'
+      include 'GEOM'
+      include 'PARALLEL'
+      include 'WZ'
+      include 'ZPER'
+
+      real phi(nx1,ny1,nz1,nelv),wrt(nx1,ny1,nz1,nelv),phia(nx1,nelx)
+      real w1(nx1,nelx),w2(nx1,nelx) !work arrays
+
+      integer e,eg,ex,nx,i,j,estride
+      real xx,aa
+
+      if(ldim.gt.2) then
+        write(*,'(5x,a)')
+     &            "x-average routine only written for 2D genbox meshes!"
+        return
+      endif
+
+      nx=nx1*nelx !number of z-slices
+
+      call rzero(phia,nx)
+      call rzero(w1,nx)
+
+      do e=1,nelt
+        eg=lglel(e)
+        ex=mod(eg,nelx) !x-slice id
+        if(ex.eq.0)ex=nelx
+        do i=1,nx1
+          do j=1,ny1
+            xx=(1.0-zgm1(i,1))/2.0
+            aa=zz*area(j,1,4,e)+(1.0-zz)*area(j,1,2,e)
+            w1(i,ex)=w1(i,ex)+aa
+            phia(i,ex)=phia(i,ex)+aa*phi(i,j,1,e)
+          enddo
+        enddo
+      enddo
+
+      call gop(phia,w2,'+  ',nx)
+      call gop(w1,w2,'+  ',nx)
+      call invcol2(phia,w1,nx)
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine x_average_weighted(phia,phi,wrt,w1,w2)
+      include 'SIZE'
+      include 'GEOM'
+      include 'PARALLEL'
+      include 'WZ'
+      include 'ZPER'
+
+      real phi(nx1,ny1,nz1,nelv),wrt(nx1,ny1,nz1,nelv),phia(nx1,nelx)
+      real w1(nx1,nelx),w2(nx1,nelx) !work arrays
+
+      integer e,eg,ex,nx,i,j,estride
+      real xx,aa
+
+      if(lz1.gt.1) then
+        write(*,'(5x,a)')
+     &                   "x-average routine only written for 2D meshes!"
+        return
+      endif
+
+      nx=nx1*nelx !number of z-slices
+
+      call rzero(phia,nx)
+      call rzero(w1,nx)
+
+      do e=1,nelt
+        eg=lglel(e)
+        ex=mod(eg,nelx) !x-slice id
+        if(ex.eq.0)ex=nelx
+        do i=1,nx1
+          do j=1,ny1
+            xx=(1.0-zgm1(i,1))/2.0
+            aa=zz*area(j,1,4,e)+(1.0-zz)*area(j,1,2,e)
+            w1(i,ex)=w1(i,ex)+aa*wrt(i,j,1,e)
+            phia(i,ex)=phia(i,ex)+aa*wrt(i,j,1,e)*phi(i,j,1,e)
+          enddo
+          if(abs(w1(i,ex)).lt.1.0d-10) w1(i,ex)=1.0d-10
+        enddo
+      enddo
+
+      call gop(phia,w2,'+  ',nx)
+      call gop(w1,w2,'+  ',nx)
+      call invcol2(phia,w1,nx)
+
+      return
+      end
+C-----------------------------------------------------------------------
       subroutine y_p_limits(wd,dens,visc,ypmin,ypmax,ypave)
       include 'SIZE'
       include 'TOTAL'

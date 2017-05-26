@@ -1,0 +1,197 @@
+C-----------------------------------------------------------------------
+C  USER SPECIFIED ROUTINE: std_k_omega_SST
+C	DRS - 05/12/2017 - branched from standard_k_omega.usr
+C			   modified to provide the k-omega SST model
+C
+C	include this in the .usr file to add the k-omega turbulence model
+C	Note: this will probably have to be adjusted to account for 
+C		the two-fluid model
+C       provides:
+C		std_k_omega_SST
+C			subroutine for computing the source terms
+C			for the k-omega SST  model and the eddy viscosity
+C			call this in usrchk
+C-----------------------------------------------------------------------
+      subroutine std_k_omega_SST(velu,velv,velw,dens,visc,wd,tke,omega
+     &                                  ,src_k,src_o,src_t,mu_t,ski,soi)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+      include 'MASS'
+
+      integer iglsum
+      integer lxyze
+      parameter (lxyze=lx1*ly1*lz1*lelv)
+      integer i,j,ipt,iclip_k,ilim_k,iclip_o,ilim_o,n
+      real velu(1),velv(1),velw(1),tke(1),omega(1),dens(1),visc(1),wd(1)
+      real src_k(1),src_o(1),src_t(1),mu_t(1),soi(1),ski(1)
+      real tke0,omega0,rho,mu,ywm1,ywm2,vist,vistmax
+      real gradu(lxyze,3,3),gradk(lxyze,3),grado(lxyze,3)
+      real prod_ratio,Gk,Yk,Go,Yo,tau_ij,O_ij,O_mag,two3rds
+      real F1,F2,psi1,psi11,psi12,psi2,psi21,psi22,CDko,Xk
+      real beta_st,alpha,beta,gamm,sigk,sigo
+      real beta1,beta2,gamm1,gamm2,sigk1,sigk2,sigo1,sigo2
+      parameter (beta_st=9.0d-2,    alpha=3.1d-1)
+      parameter (beta1=7.5d-2,      beta2=8.28d-2)
+      parameter (gamm1=5.0d0/9.0d0, gamm2=4.4d-1)
+      parameter (sigk1=8.5d-1,      sigk2=1.0)
+      parameter (sigo1=5.0d-1,      sigo2=8.56d-1)
+      parameter (prod_ratio=5.0d1,two3rds=2.0d0/3.0d0)
+
+      n=nx1*ny1*nz1*nelv
+
+      iclip_k=0
+      ilim_k=0
+      iclip_o=0
+      ilim_o=0
+
+      call gradm1(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),velu)
+      call gradm1(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),velv)
+      call gradm1(gradk(1,1),gradk(1,2),gradk(1,3),tke)
+      call gradm1(grado(1,1),grado(1,2),grado(1,3),omega)
+
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),bm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),bm1)
+      call opcolv(gradk(1,1),gradk(1,2),gradk(1,3),bm1)
+      call opcolv(grado(1,1),grado(1,2),grado(1,3),bm1)
+
+      call opdssum(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3))
+      call opdssum(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3))
+      call opdssum(gradk(1,1),gradk(1,2),gradk(1,3))
+      call opdssum(grado(1,1),grado(1,2),grado(1,3))
+
+      call opcolv(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),binvm1)
+      call opcolv(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),binvm1)
+      call opcolv(gradk(1,1),gradk(1,2),gradk(1,3),binvm1)
+      call opcolv(grado(1,1),grado(1,2),grado(1,3),binvm1)
+
+      if(if3d) then
+        call gradm1(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),velw)
+        call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),bm1)
+        call opdssum(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3))
+        call opcolv(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),binvm1)
+      endif
+
+      do ipt=1,n !for every point in the element
+
+        if(tke(ipt).lt.0.0) then !limit on tke to keep it positive
+          tke0=1.0d-2*abs(tke(ipt))
+          tke(ipt)=tke0
+          ilim_k=ilim_k+1
+        else
+          tke0=tke(ipt)
+        endif
+
+        if(omega(ipt).lt.0.0) then !limit on omega to keep it positive
+          omega0=1.0d-2*abs(omega(ipt))
+          omega(ipt)=omega0
+          ilim_o=ilim_o+1
+        else
+          omega0=omega(ipt)
+        endif
+
+        ywm1=0.0
+        ywm2=0.0
+        if(wd(ipt).gt.0.0) then
+          ywm1=1.0/wd(ipt)
+          ywm2=ywm1*ywm1
+        endif
+
+        if(iflomach) then
+          rho=dens(ipt)
+          mu=visc(ipt)
+        else
+          rho=dens(1)
+          mu=visc(1)
+        endif
+        vistmax=5.0d3*mu
+
+        O_mag=0.0
+        Xk=0.0
+        do i=1,ndim
+          Xk=Xk+gradk(ipt,i)*grado(ipt,i)
+          do j=1,ndim
+            O_ij=5.0d-1*(gradu(ipt,i,j)-gradu(ipt,j,i))
+            O_mag=O_mag+O_ij*O_ij
+          enddo
+        enddo
+        O_mag=sqrt(2.0d0*O_mag)
+        Xk=2.0d0*(rho*sigo2/omega0)*Xk
+
+        CDko=max(Xk,1.0d-20)
+        psi22=5.0d2*mu*ywm2/(rho*omega0)
+        psi21=sqrt(tke0)*ywm1/(beta_st*omega0)
+        psi12=4.0d0*rho*sigo2*tke0*ywm2/CDko
+        psi11=max(psi21,psi22)
+        psi2=max(2.0d0*psi21,psi22)
+        psi1=min(psi11,psi12)
+        F2=tanh(psi2*psi2)
+        F1=tanh(psi1*psi1*psi1*psi1)
+
+        sigk=F1*sigk1+(1.0d0-F1)*sigk2       
+        sigo=F1*sigo1+(1.0d0-F1)*sigo2       
+        beta=F1*beta1+(1.0d0-F1)*beta2       
+        gamm=F1*gamm1+(1.0d0-F1)*gamm2       
+
+        vist=alpha*rho*tke0/max(alpha*omega0,O_mag*F2)
+        vist=min(vist,vistmax)
+        mu_t(ipt)=vist !update eddy viscosity
+        ski(ipt)=1.0d0/sigk
+        soi(ipt)=1.0d0/sigo
+
+        Gk=0.0 !k production
+        do i=1,ndim
+          do j=1,ndim
+            tau_ij=vist*(gradu(ipt,i,j)+gradu(ipt,i,j))
+            if(i.eq.j) tau_ij=tau_ij-two3rds*rho*tke0
+            Gk=Gk+gradu(ipt,i,j)*tau_ij
+          enddo
+        enddo
+
+        Yk=rho*beta_st*tke0*omega0 !k destruction
+
+        src_t(ipt)=Yk !viscous dissipation term (turns tke into heat)
+
+        if(Gk.gt.prod_ratio*Yk) then !turbulence production clip
+          iclip_k=iclip_k+1
+          Gk=prod_ratio*Yk
+        endif
+
+        src_k(ipt)=Gk-Yk
+
+c       omega source production
+        Go=(gamm*max(alpha*omega0,O_mag*F2)/(alpha*tke0))*Gk
+        Go=Go+(1.0d0-F1)*Xk
+
+        Yo=rho*beta*omega0**2 !omega destruction
+
+        if(Go.gt.prod_ratio*Yo) then !omega production clip
+          iclip_o=iclip_o+1
+          Go=prod_ratio*Yo
+        endif
+
+        src_o(ipt)=Go-Yo
+
+      enddo !1..ipt..n
+
+      iclip_k=iglsum(iclip_k,1)
+      ilim_k=iglsum(ilim_k,1)
+      iclip_o=iglsum(iclip_o,1)
+      ilim_o=iglsum(ilim_o,1)
+
+      if(nid.eq.0.and.(iclip_k+ilim_k+iclip_o+ilim_o).gt.0) then
+        if(iclip_k.gt.0)
+     &    write(*,101) '  TKE production clipped on ',iclip_k,' points'
+        if(ilim_k.gt.0)
+     &    write(*,101) '  TKE limited on ',ilim_k,' points'
+        if(iclip_o.gt.0)
+     &    write(*,101) 'Omega production clipped on ',iclip_o,' points'
+        if(ilim_o.gt.0)
+     &    write(*,101) 'Omega limited on ',ilim_o,' points'
+        write(*,*)
+      endif
+
+101    format(a32,i9,a)
+
+      end
+c-----------------------------------------------------------------------
