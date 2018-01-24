@@ -1,0 +1,27 @@
+      integer ncoeffs,nph
+      parameter (ncoeffs = 21)
+      common /rans_komg_i/ ifld_k(lphases), ifld_o(lphases)
+      integer ifld_k,ifld_omega
+      common /rans_komg_r/ kSrc  (lx1,ly1,lz1,lelv,lphases)
+     $                   , omgSrc(lx1,ly1,lz1,lelv,lphases)
+     $                   , mut   (lx1,ly1,lz1,lelv,lphases)
+     $                   , mutsk (lx1,ly1,lz1,lelv,lphases)
+     $                   , mutso (lx1,ly1,lz1,lelv,lphases)
+     $                   , coeffs(ncoeffs),mu(lphases),rho(lphases)
+
+      common /rans_komg_omegab/ f_omegb     (lx1,ly1,lz1,lelv,lphases)
+     $                        , dfdx_omegb  (lx1,ly1,lz1,lelv,lphases)
+     $                        , dfdy_omegb  (lx1,ly1,lz1,lelv,lphases)
+     $                        , dfdz_omegb  (lx1,ly1,lz1,lelv,lphases)
+     $                        , delfsq_omegb(lx1,ly1,lz1,lelv,lphases)
+     $                        , delsqf_omegb(lx1,ly1,lz1,lelv,lphases)
+     $                        , ywd         (lx1,ly1,lz1,lelv)
+     $                        , ywdm1       (lx1,ly1,lz1,lelv,lphases)
+
+      real kSrc,omgSrc,mut,mutsk,mutso,coeffs,mu,rho
+      real f_omegb,dfdx_omegb,dfdy_omegb,dfdz_omegb
+     & delfsq_omegb,delsqf_omegb,ywd,ywdm1
+
+      common /ifrans/ ifrans_komg,ifrans_komgSST
+      logical         ifrans_komg,ifrans_komgSST
+
