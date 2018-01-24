@@ -44,13 +44,13 @@
       do iside=1,2*ldim
         call get_face_norm(ielem,iside,fnorm)
         dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)+fnorm(3)*norm(3)
-        if(dabs(1.0-dp).lt.1.0d-8) then
+        if(abs(1.0-dp).lt.1.0d-8) then
           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
           i=(i0+i1)/2
           j=(j0+j1)/2
           k=(k0+k1)/2
           ipoint=i+lx1*(j-1)+lx1*ly1*(k-1)+lxyz*(ielem-1)
-          if(dabs(rcrd(ipoint)-tmploc).lt.1.0d-8) then
+          if(abs(rcrd(ipoint)-tmploc).lt.1.0d-8) then
             do i=i0,i1
             do j=j0,j1
             do k=k0,k1

@@ -23,7 +23,7 @@ C
           k=(k0+k1)/2
           ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(ielem-1)*lx1*ly1*lz1
           if(abs(coord(ipoint)-loc).lt.1.0d-8)then
-            call get_face_norm(ielem,iside,fnorm)
+            call getSnormal(fnorm,i,j,k,iside,ielem)
             dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)
             if(if3d) dp=dp+fnorm(3)*norm(3)
             if(abs(1.0d0-dp).lt.1.0d-8) then
@@ -181,73 +181,6 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      real function get_bforce(utarg,bias,u,K_p,K_i)
-
-      include 'SIZE'
-      include 'TOTAL'
-
-      integer n
-      real utarg,ubar,error,ierror,derror,perror,bias
-      real K_p,K_i,K_d
-      real u(1)
-
-      data ierror /0.0/
-      save ierror,perror
-
-      K_d=0.0
-
-      n=lx1*ly1*lz1*nelv
-      ubar=glsc2(u,bm1,n)/volvm1
-      error=1.0-ubar/utarg
-      ierror=ierror+error*dt
-      derror=(error-perror)/dt
-      if(istep.lt.2) then
-        force=bias
-      else
-        force=bias+(K_p*error+K_i*ierror+K_d*derror)*utarg/dt
-      endif
-      perror=error
-
-      if(nid.eq.0) then
-        write(*,256) '  Body Force Set: ',force
-        write(*,256) '           Error: ',error
-        write(*,*)
-      endif
- 256  format(4x,a,es15.5)
-
-      get_bforce=force
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine get_face_norm(ielem,iside,norm)
-      include 'mpif.h'
-      include 'SIZE'
-      include 'TOTAL'
-
-      integer ielem,iside,i0,i1,j0,j1,k0,k1,i,j,k
-      real norm(3)
-
-      call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
-      i=(i0+i1)/2
-      j=(j0+j1)/2
-      k=(k0+k1)/2
-      if    ((iside.eq.1).or.(iside.eq.3))then
-        norm(1)=unx(i,k,iside,ielem)
-        norm(2)=uny(i,k,iside,ielem)
-        norm(3)=unz(i,k,iside,ielem)
-      elseif((iside.eq.2).or.(iside.eq.4))then
-        norm(1)=unx(j,k,iside,ielem)
-        norm(2)=uny(j,k,iside,ielem)
-        norm(3)=unz(j,k,iside,ielem)
-      else
-        norm(1)=unx(i,j,iside,ielem)
-        norm(2)=uny(i,j,iside,ielem)
-        norm(3)=unz(i,j,iside,ielem)
-      endif
-      return
-      end
-C-----------------------------------------------------------------------
       subroutine get_limits(phi,phimin,phimax,phiave,dphi,phip,rmsphi)
       include 'SIZE'
       include 'TOTAL'
@@ -255,7 +188,7 @@ C-----------------------------------------------------------------------
       integer lxyze
       parameter(lxyze=lx1*ly1*lz1*lelv)
 
-      real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi,vol
+      real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi
       integer i,n,ntot
 
       n=nx1*ny1*nz1*nelv
@@ -263,7 +196,6 @@ C-----------------------------------------------------------------------
 
       rmsphi=0.0
       dphi=0.0
-      vol=glsum(bm1,n)
       if(istep.ge.1) then
         do i=1,n
           dphi=max(dphi,abs(phip(i)-phi(i)))
@@ -277,7 +209,7 @@ C-----------------------------------------------------------------------
 
       phimin=glmin(phi,n)
       phimax=glmax(phi,n)
-      phiave=glsc2(phi,bm1,n)/vol
+      phiave=glsc2(phi,bm1,n)/volvm1
 
       return
       end
@@ -373,7 +305,7 @@ c-----------------------------------------------------------------------
           j=(j0+j1)/2
           k=(k0+k1)/2
           ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+lx1*ly1*lz1*(ielem-1)
-          call get_face_norm(ielem,iside,fnorm)
+          call getSnormal(fnorm,i,j,k,iside,ielem)
           dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)
           if(if3d) dp=dp+fnorm(3)*norm(3)
           if((1.0d0-abs(dp)).lt.1.0d-8)then
@@ -407,31 +339,7 @@ C-----------------------------------------------------------------------
         call izero(mask,ne) !mask all points in the element
         do iside=1,2*ndim !unmask all points just off the wall
           if(cbc(iside,ielem,1).eq.'W  ') then
-            i0=1
-            j0=1
-            k0=1
-            i1=nx1
-            j1=ny1
-            k1=nz1
-            if(iside.eq.1) then
-              j0=2
-              j1=2
-            elseif(iside.eq.2) then
-              i0=nx1-1
-              i1=nx1-1
-            elseif(iside.eq.3) then
-              j0=ny1-1
-              j1=ny1-1
-            elseif(iside.eq.4) then
-              i0=2
-              i1=2
-            elseif(iside.eq.5) then
-              k0=2
-              k1=2
-            elseif(iside.eq.6) then
-              k0=nz1-1
-              k1=nz1-1
-            endif
+            call backpts(i0,i1,j0,j1,k0,k1,iside)
             do i=i0,i1
             do j=j0,j1
             do k=k0,k1
@@ -496,7 +404,7 @@ C
           k=(k0+k1)/2
           ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(ielem-1)*lx1*ly1*lz1
           if(abs(coord(ipoint)-loc).lt.1.0d-8)then 
-            call get_face_norm(ielem,iside,fnorm)
+            call getSnormal(fnorm,i,j,k,iside,ielem)
             dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)
             if(if3d) dp=dp+fnorm(3)*norm(3)
             if(abs(1.0d0-dp).lt.1.0d-8) then
@@ -679,18 +587,22 @@ C-----------------------------------------------------------------------
       subroutine y_p_limits(wd,ypmin,ypmax,ypave,utmin,utmax,utave)
       implicit none
       include 'SIZE'
-      include 'SOLN'
-      include 'INPUT'
-      include 'GEOM'
-      include 'MASS'
+      include 'TOTAL'
+C
+C     NOTE: min value should work if domain has internal corners
+C                ...hasn't been tested
 
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
-      integer ipt,wpt,estrd,isd
+      integer ipt,wpt,estrd,isd,jsd
+      integer imsk(lx1,ly1,lz1,lelv)
       real gradu(lx1*ly1*lz1,3,3),wd(1)
-      real tau(3),norm(3),vsca,tauw,utau
+      real tau(3),norm(3),vsca,tauw,utau,rho,mu
       real ypmin,ypmax,yp,ypave,vol,utmin,utmax,utave
       real glmin,glmax,glsum
-      logical flag
+      logical flag, idid
+
+      data idid /.false./
+      save idid
 
       ypmin=1.0d30
       ypmax=-1.0d30
@@ -699,6 +611,38 @@ C-----------------------------------------------------------------------
       utmax=-1.0d30
       utave=0.0
       vol=0.0
+
+C     first build the mask
+      if(.not.idid)then
+        idid=.true.
+        call izero(imsk,nx1*ny1*nz1*nelv)
+        do e=1,nelv
+          do isd=1,2*ndim
+            if(cbc(isd,e,1).eq.'W  ') then
+              call backpts(i0,i1,j0,j1,k0,k1,isd)
+              do k=k0,k1
+              do j=j0,j1
+              do i=i0,i1
+                imsk(i,j,k,e)=1
+              enddo
+              enddo
+              enddo
+            endif
+          enddo
+          do isd=1,2*ndim
+            if(cbc(isd,e,1).eq.'W  ') then
+              call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
+              do k=k0,k1
+              do j=j0,j1
+              do i=i0,i1
+                imsk(i,j,k,e)=0
+              enddo
+              enddo
+              enddo
+            endif
+          enddo
+        enddo
+      endif
 
       do e=1,nelv
         flag=.true.
@@ -712,101 +656,62 @@ C-----------------------------------------------------------------------
      &         call gradm11(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),vz,e)
               flag=.false.
             endif
-            i0=1
-            j0=1
-            k0=1
-            i1=nx1
-            j1=ny1
-            k1=nz1
-            if(isd.eq.1) then
-              j0=2
-              j1=2
-            elseif(isd.eq.2) then
-              i0=nx1-1
-              i1=nx1-1
-            elseif(isd.eq.3) then
-              j0=ny1-1
-              j1=ny1-1
-            elseif(isd.eq.4) then
-              i0=2
-              i1=2
-            elseif(isd.eq.5) then
-              k0=2
-              k1=2
-            elseif(isd.eq.6) then
-              k0=nz1-1
-              k1=nz1-1
-            endif
+            call backpts(i0,i1,j0,j1,k0,k1,isd)
             do k=k0,k1
             do j=j0,j1
             do i=i0,i1
-              iw=i
-              jw=j
-              kw=k
-              if    (isd.eq.1) then
-                jw=1
-                norm(1)=unx(iw,kw,isd,e)
-                norm(2)=uny(iw,kw,isd,e)
-                norm(3)=unz(iw,kw,isd,e)
-              elseif(isd.eq.2) then
-                iw=nx1
-                norm(1)=unx(jw,kw,isd,e)
-                norm(2)=uny(jw,kw,isd,e)
-                norm(3)=unz(jw,kw,isd,e)
-              elseif(isd.eq.3) then
-                jw=ny1
-                norm(1)=unx(iw,kw,isd,e)
-                norm(2)=uny(iw,kw,isd,e)
-                norm(3)=unz(iw,kw,isd,e)
-              elseif(isd.eq.4) then
-                iw=1
-                norm(1)=unx(jw,kw,isd,e)
-                norm(2)=uny(jw,kw,isd,e)
-                norm(3)=unz(jw,kw,isd,e)
-              elseif(isd.eq.5) then
-                kw=1
-                norm(1)=unx(iw,jw,isd,e)
-                norm(2)=uny(iw,jw,isd,e)
-                norm(3)=unz(iw,jw,isd,e)
-              else
-                kw=nx1
-                norm(1)=unx(iw,jw,isd,e)
-                norm(2)=uny(iw,jw,isd,e)
-                norm(3)=unz(iw,jw,isd,e)
-              endif
-              ipt=i +(j -1)*nx1+(k -1)*nx1*ny1
-              wpt=iw+(jw-1)*nx1+(kw-1)*nx1*ny1
+              if(imsk(i,j,k,e).eq.1) then
+                iw=i
+                jw=j
+                kw=k
+                if    (isd.eq.1) then
+                  jw=1
+                elseif(isd.eq.2) then
+                  iw=nx1
+                elseif(isd.eq.3) then
+                  jw=ny1
+                elseif(isd.eq.4) then
+                  iw=1
+                elseif(isd.eq.5) then
+                  kw=1
+                else
+                  kw=nx1
+                endif
+                call getSnormal(norm,iw,jw,kw,isd,e)
+                ipt=i +(j -1)*nx1+(k -1)*nx1*ny1
+                wpt=iw+(jw-1)*nx1+(kw-1)*nx1*ny1
 
-              mu=vdiff(iw,jw,kw,e,1)
-              rho=vtrans(iw,jw,kw,e,1)
+                mu=vdiff(iw,jw,kw,e,1)
+                rho=vtrans(iw,jw,kw,e,1)
 
-              do i2=1,ldim
-              tau(i2)=0.0
-                do j2=1,ldim
-                  tau(i2)=tau(i2)+
-     &             mu*(gradu(wpt,i2,j2)+gradu(wpt,j2,i2))*norm(j2)
+                do i2=1,ldim
+                tau(i2)=0.0
+                  do j2=1,ldim
+                    tau(i2)=tau(i2)+
+     &                   mu*(gradu(wpt,i2,j2)+gradu(wpt,j2,i2))*norm(j2)
+                  enddo
                 enddo
-              enddo
 
-              vsca=0.0
-              do i2=1,ldim
-                vsca=vsca+tau(i2)*norm(i2)
-              enddo
+                vsca=0.0
+                do i2=1,ldim
+                  vsca=vsca+tau(i2)*norm(i2)
+                enddo
 
-              tauw=0.0
-              do i2=1,ldim
-                tauw=tauw+(tau(i2)-vsca*norm(i2))**2
-              enddo
-              tauw=sqrt(tauw)
-              utau=sqrt(tauw/rho)
-              yp=wd(ipt+estrd)*utau*rho/mu
-              ypmin=min(ypmin,yp)
-              ypmax=max(ypmax,yp)
-              utave=utave+utau*bm1(i,j,k,e)
-              utmin=min(utau,utmin)
-              utmax=max(utau,utmax)
-              ypave=ypave+yp*bm1(i,j,k,e)
-              vol=vol+bm1(i,j,k,e)
+                tauw=0.0
+                do i2=1,ldim
+                  tauw=tauw+(tau(i2)-vsca*norm(i2))**2
+                enddo
+                tauw=sqrt(tauw)
+                utau=sqrt(tauw/rho)
+                yp=wd(ipt+estrd)*utau*rho/mu
+                ypmin=min(ypmin,yp)
+                ypmax=max(ypmax,yp)
+                utave=utave+utau*bm1(i,j,k,e)
+                utmin=min(utau,utmin)
+                utmax=max(utau,utmax)
+                ypave=ypave+yp*bm1(i,j,k,e)
+                vol=vol+bm1(i,j,k,e)
+              endif
             enddo
             enddo
             enddo
@@ -823,6 +728,41 @@ C-----------------------------------------------------------------------
       vol=glsum(vol,1)
       ypave=ypave/vol
       utave=utave/vol
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine backpts(i0,i1,j0,j1,k0,k1,isd)
+      implicit none
+      include 'SIZE'
+
+      integer i0,i1,j0,j1,k0,k1,isd
+
+      i0=1
+      j0=1
+      k0=1
+      i1=nx1
+      j1=ny1
+      k1=nz1
+      if(isd.eq.1) then
+        j0=2
+        j1=2
+      elseif(isd.eq.2) then
+        i0=nx1-1
+        i1=nx1-1
+      elseif(isd.eq.3) then
+        j0=ny1-1
+        j1=ny1-1
+      elseif(isd.eq.4) then
+        i0=2
+        i1=2
+      elseif(isd.eq.5) then
+        k0=2
+        k1=2
+      elseif(isd.eq.6) then
+        k0=nz1-1
+        k1=nz1-1
+      endif
 
       return
       end
