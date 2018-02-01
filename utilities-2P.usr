@@ -548,7 +548,7 @@ C                ...hasn't been tested
       logical flag, idid
 
       data idid /.false./
-      save idid
+      save idid, imsk
 
       ypmin=1.0d30
       ypmax=-1.0d30
