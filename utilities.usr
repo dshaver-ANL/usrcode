@@ -345,46 +345,51 @@ C-----------------------------------------------------------------------
 
       real wd(nx1,ny1,nz1,nelv)
       integer ielem,iside,i,i0,i1,j,j0,j1,k,k0,k1
-      integer ne,mask(lx1,ly1,lz1)
+      integer n
+      real msk(lx1,ly1,lz1,lelv)
       real dwmax,dwmin
 
-      ne=nx1*ny1*nz1
+      n=nx1*ny1*nz1*nelv
 
       dwmax=-1.0d30
       dwmin=1.0d30
-      do ielem=1,nelv
-        call izero(mask,ne) !mask all points in the element
-        do iside=1,2*ndim !unmask all points just off the wall
-          if(cbc(iside,ielem,1).eq.'W  ') then
-            call backpts(i0,i1,j0,j1,k0,k1,iside)
-            do i=i0,i1
-            do j=j0,j1
+
+      call rone(msk,nx1*ny1*nz1*nelv)
+      do e=1,nelv
+        do isd=1,2*ndim
+          if(cbc(isd,e,1).eq.'W  ') then
+            call backpts(i0,i1,j0,j1,k0,k1,isd)
             do k=k0,k1
-              mask(i,j,k)=1
+            do j=j0,j1
+            do i=i0,i1
+              msk(i,j,k,e)=0.0
             enddo
             enddo
             enddo
           endif
         enddo
-        do iside=1,2*ndim !remask all points on the wall
-          if(cbc(iside,ielem,1).eq.'W  ') then
-            call facind(i0,i1,j0,j1,k0,k1,nx1,ny1,nz1,iside)
+        do isd=1,2*ndim
+          if(cbc(isd,e,1).eq.'W  ') then
+            call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
             do k=k0,k1
             do j=j0,j1
             do i=i0,i1
-              mask(i,j,k)=0
+              msk(i,j,k,e)=1.0
             enddo
             enddo
             enddo
-          endif
-        enddo
-        do i=1,ne
-          if(mask(i,1,1).ne.0)then
-            dwmax=max(dwmax,wd(i,1,1,ielem))
-            dwmin=min(dwmin,wd(i,1,1,ielem))
           endif
         enddo
       enddo
+      call dssum(msk,nx1,ny1,nz1) !for elements with edges but not faces along a wall
+
+      do i=1,n
+        if(msk(i,1,1,1).lt.0.5)then
+          dwmax=max(dwmax,wd(i,1,1,1))
+          dwmin=min(dwmin,wd(i,1,1,1))
+        endif
+      enddo
+
       dwmax=glmax(dwmax,1)
       dwmin=glmin(dwmin,1)
       if(nid.eq.0) then
@@ -607,11 +612,11 @@ C-----------------------------------------------------------------------
       include 'TOTAL'
 C
 C     NOTE: min value should work if domain has internal corners
-C                ...hasn't been tested
+C
 
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
       integer ipt,wpt,estrd,isd,jsd
-      integer imsk(lx1,ly1,lz1,lelv)
+      real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1*ly1*lz1,3,3),wd(1)
       real tau(3),norm(3),vsca,tauw,utau,rho,mu
       real ypmin,ypmax,yp,ypave,vol,utmin,utmax,utave
@@ -619,7 +624,7 @@ C                ...hasn't been tested
       logical ifgrad, ifdid
 
       data ifdid /.false./
-      save ifdid, imsk
+      save ifdid, msk
 
       ypmin=1.0d30
       ypmax=-1.0d30
@@ -632,7 +637,7 @@ C                ...hasn't been tested
 C     first build the mask
       if(.not.ifdid)then
         ifdid=.true.
-        call izero(imsk,nx1*ny1*nz1*nelv)
+        call rone(msk,nx1*ny1*nz1*nelv)
         do e=1,nelv
           do isd=1,2*ndim
             if(cbc(isd,e,1).eq.'W  ') then
@@ -640,7 +645,7 @@ C     first build the mask
               do k=k0,k1
               do j=j0,j1
               do i=i0,i1
-                imsk(i,j,k,e)=1
+                msk(i,j,k,e)=0.0
               enddo
               enddo
               enddo
@@ -652,13 +657,14 @@ C     first build the mask
               do k=k0,k1
               do j=j0,j1
               do i=i0,i1
-                imsk(i,j,k,e)=0
+                msk(i,j,k,e)=1.0
               enddo
               enddo
               enddo
             endif
           enddo
         enddo
+        call dssum(msk,nx1,ny1,nz1) !for elements with edges but not faces along a wall
       endif
 
       do e=1,nelv
@@ -677,7 +683,7 @@ C     first build the mask
             do k=k0,k1
             do j=j0,j1
             do i=i0,i1
-              if(imsk(i,j,k,e).eq.1) then
+              if(msk(i,j,k,e).lt.0.5) then
                 iw=i
                 jw=j
                 kw=k
@@ -723,10 +729,10 @@ C     first build the mask
                 yp=wd(ipt+estrd)*utau*rho/mu
                 ypmin=min(ypmin,yp)
                 ypmax=max(ypmax,yp)
-                utave=utave+utau*bm1(i,j,k,e)
+                ypave=ypave+yp*bm1(i,j,k,e)
                 utmin=min(utau,utmin)
                 utmax=max(utau,utmax)
-                ypave=ypave+yp*bm1(i,j,k,e)
+                utave=utave+utau*bm1(i,j,k,e)
                 vol=vol+bm1(i,j,k,e)
               endif
             enddo
