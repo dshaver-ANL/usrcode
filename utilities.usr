@@ -181,7 +181,7 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      subroutine get_limits(phi,phimin,phimax,phiave,dphi,phip,rmsphi)
+      subroutine get_limits(phi,phimin,phimax,phiave,dphi,phip,rmsphi,n)
       implicit none
       include 'SIZE'
       include 'TOTAL'
@@ -190,7 +190,6 @@ C-----------------------------------------------------------------------
       real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi
       real glmin,glmax,glsc2,glsum
 
-      n=nx1*ny1*nz1*nelv
       ntot=iglsum(n,1)
 
       rmsphi=0.0
@@ -340,14 +339,15 @@ c-----------------------------------------------------------------------
       end
 C-----------------------------------------------------------------------
       subroutine max_y_p(wd)
+      implicit none
       include 'SIZE'
       include 'TOTAL'
 
       real wd(nx1,ny1,nz1,nelv)
-      integer ielem,iside,i,i0,i1,j,j0,j1,k,k0,k1
+      integer e,isd,i,i0,i1,j,j0,j1,k,k0,k1
       integer n
       real msk(lx1,ly1,lz1,lelv)
-      real dwmax,dwmin
+      real dwmax,dwmin,glmin,glmax
 
       n=nx1*ny1*nz1*nelv
 
@@ -815,16 +815,16 @@ c     real ypmin,ypmax,ypave,utmin,utmax,utave
       n2=nx2*ny2*nz2*nelv
       nt=nx1*ny1*nz1*nelt
 
-      call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux)
-      call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy)
-      if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz)
-      call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr)
+      call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
+      call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
+      if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
+      call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
       if(ifheat)then
         do i=1,npscal+1
-          if(idpss(i).eq.0) call get_limits(t(1,1,1,1,i) !Helmholtz solver
-     &    ,thmin(i),thmax(i),thave(i),dth(i),tlag(1,1,1,1,1,i),rmsth(i))
+          if(idpss(i).eq.0) call get_limits(t(1,1,1,1,i),thmin(i) !Helmholtz solver
+     &          ,thmax(i),thave(i),dth(i),tlag(1,1,1,1,1,i),rmsth(i),nt)
           if(idpss(i).eq.1) call get_limits_nodt(t(1,1,1,1,i) !CVODE solver
-     &                                      ,thmin(i),thmax(i),thave(i))
+     &                                   ,thmin(i),thmax(i),thave(i),nt)
         enddo
       endif
 
@@ -838,7 +838,7 @@ c     real ypmin,ypmax,ypave,utmin,utmax,utave
         if(ifheat) then
           do i=1,npscal+1
             if(i.eq.1) write(tname,'(a15)') "temperature"
-            if(i.gt.1) write(tname,'(a14,i1)') "passivescalar ",i-1
+            if(i.gt.1) write(tname,'(a14,i1)') "PS ",i-1
             if(idpss(i).eq.0)write(*,255)
      &               tname,thmin(i),thmax(i),thave(i),dth(i),rmsth(i)
             if(idpss(i).eq.1)write(*,256)
@@ -904,6 +904,77 @@ c-----------------------------------------------------------------------
      &                  q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
       if(abs(param(54)).eq.3.0)
      &                  q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine average_files(navg)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer navg,n,i,ls,ltrunc
+      real t0
+      character*132 fbase
+      character*1   fbas1(132)
+
+      real vxavg(lx1*ly1*lz1*lelv)
+      real vyavg(lx1*ly1*lz1*lelv)
+      real vzavg(lx1*ly1*lz1*lelv)
+      real pravg(lx1*ly1*lz1*lelv)
+      real tavg(lx1*ly1*lz1*lelv)
+
+      n=nx1*ny1*nz1*nelv
+
+      call blank(fbase,132)
+      write(fbase,'(a3)')'avg'
+      ls=ltrunc(SESSION,132)
+      call chcopy(fbas1(4),SESSION,ls)
+      ls=ls+4
+      write(fbas1(ls),'(a3)')'0.f'
+      ls=ls+3
+
+      t0=0.0
+      if(navg.ne.0.and.nsteps.eq.0) then
+        call rzero(vxavg,n)
+        call rzero(vyavg,n)
+        call rzero(vzavg,n)
+        call rzero(pravg,n)
+        call rzero(tavg ,n)
+        do i=1,navg
+          call blank(initc(1),132)
+          call chcopy(initc(1),fbas1(1),ls-1)
+          if(i.lt.10) then
+            write(initc(1),'(a15,i1)')'avgttHex0.f0000',i
+          elseif(i.lt.100) then
+            write(initc(1),'(a15,i2)')'avgttHex0.f000',i
+          elseif(i.lt.1000) then
+            write(initc(1),'(a15,i3)')'avgttHex0.f00',i
+          endif
+
+          call restart(1)
+
+          t0=t0+time
+          call add2s2(vxavg,vx,time,n)
+          call add2s2(vyavg,vy,time,n)
+          call add2s2(vzavg,vz,time,n)
+          call add2s2(pravg,pr,time,n)
+          call add2s2(tavg ,t ,time,n)
+c         call nekgsync()
+        enddo
+        time=t0
+        call cmult(vxavg,1.0/t0,n)
+        call cmult(vyavg,1.0/t0,n)
+        call cmult(vzavg,1.0/t0,n)
+        call cmult(pravg,1.0/t0,n)
+        call cmult(tavg ,1.0/t0,n)
+
+        call copy (vx,vxavg,n)
+        call copy (vy,vyavg,n)
+        call copy (vz,vzavg,n)
+        call copy (pr,pravg,n)
+        call copy (t ,tavg ,n)
+      endif
 
       return
       end
