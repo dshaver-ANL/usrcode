@@ -212,7 +212,7 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      subroutine get_limits_nodt(phi,phimin,phimax,phiave)
+      subroutine get_limits_nodt(phi,phimin,phimax,phiave,n)
       implicit none
       include 'SIZE'
       include 'TOTAL'
@@ -220,8 +220,6 @@ C-----------------------------------------------------------------------
       integer n
       real phi(1),phimin,phimax,phiave
       real glmin,glmax,glsc2
-
-      n=nx1*ny1*nz1*nelv
 
       phimin=glmin(phi,n)
       phimax=glmax(phi,n)
