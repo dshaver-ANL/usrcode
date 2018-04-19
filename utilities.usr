@@ -168,7 +168,7 @@ C-----------------------------------------------------------------------
  254  format(5x,a,i2,a)
  255  format(2x,a)
  256  format(2x,a16,1x,i6)
- 257  format(2x,'Unknown boundary of type: ',a,1x,i6)
+ 257  format(2x,'Unknown boundary of type: "',a,'" ',i6)
 
       return
       end
