@@ -788,12 +788,12 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine print_limits
+      subroutine print_limits(tol)
       implicit none
       include 'SIZE'
       include 'TOTAL'
 
-      real vol,glsum,glmin,glmax,glsc2
+      real tol,vol,glsum,glmin,glmax,glsc2
       real tmp(lx1*ly1*lz1*lelv)
       integer i,n1,n2,nt
 
@@ -801,7 +801,7 @@ C     Primitive Variables
       real uxmin,uxmax,uxave,uymin,uymax,uyave,uzmin,uzmax,uzave
       real prmin,prmax,prave
       real thmin(ldimt),thmax(ldimt),thave(ldimt)
-      real rmsux,rmsuy,rmsuz,rmspr,rmsth(ldimt)
+      real rmsux,rmsuy,rmsuz,rmspr,rmsth(ldimt),rmsgl
       real dux,duy,duz,dpr,dth(ldimt)
       character*15 tname
 
@@ -826,6 +826,18 @@ c     real ypmin,ypmax,ypave,utmin,utmax,utave
         enddo
       endif
 
+      glrms=1.0d10
+      if(tol.gt.0.0)then
+        glrms=rmsux+rmsuy+rmspr
+        if(if3d)glrms=glrms+rmspr
+        if(ifheat)then
+          do i=1,npscal+1
+            if(idpss(i).eq.0) glrms=glrms+rmsth(i)
+          enddo
+        endif
+        if(glrms.le.tol) lastep=1
+      endif
+
       if(nio.eq.0) then
         write(*,*)
         write(*,254) 'limits','min','max','ave','max d/dt','rms d/dt'
@@ -844,6 +856,7 @@ c     real ypmin,ypmax,ypave,utmin,utmax,utave
           enddo
         endif
         write(*,*)
+        if(glrms.le.tol) write(6,'(7x,a)')"solution converged!"
       endif
 
       call copy(prlag,pr,n2)
