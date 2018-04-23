@@ -801,7 +801,7 @@ C     Primitive Variables
       real uxmin,uxmax,uxave,uymin,uymax,uyave,uzmin,uzmax,uzave
       real prmin,prmax,prave
       real thmin(ldimt),thmax(ldimt),thave(ldimt)
-      real rmsux,rmsuy,rmsuz,rmspr,rmsth(ldimt),rmsgl
+      real rmsux,rmsuy,rmsuz,rmspr,rmsth(ldimt),glrms
       real dux,duy,duz,dpr,dth(ldimt)
       character*15 tname
 
