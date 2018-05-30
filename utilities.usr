@@ -941,14 +941,15 @@ c-----------------------------------------------------------------------
        include 'TOTAL'
        include 'AVG'
  
-       integer navg,n,i,j
        character*124 fbase
        character*8   ftail
+       integer navg,n,i,j
+       real tsave
  
        n=nx1*ny1*nz1*nelv
  
        if(navg.gt.0.and.nsteps.eq.0) then
-         time1=time
+         tsave=time
          atime=0.0
          call rzero(uavg,n)
          call rzero(vavg,n)
@@ -966,7 +967,7 @@ c-----------------------------------------------------------------------
              write(ftail,'(a5,i3)')'0.f00',i
            endif
            call blank(initc(1),132)
-           initc=trim(fbase)//tail
+           initc=trim(fbase)//ftail
  
            call restart(1)
  
@@ -995,6 +996,7 @@ c-----------------------------------------------------------------------
          do j=1,ldimt
            call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
          enddo
+         time=tsave
        endif
  
        return
