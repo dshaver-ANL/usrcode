@@ -902,74 +902,101 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-c      subroutine average_files(navg)  WIP
-c      implicit none
-c      include 'SIZE'
-c      include 'TOTAL'
-c
-c      integer navg,n,i,ls,ltrunc
-c      real t0
-c      character*132 fbase
-c      character*1   fbas1(132)
-c
-c      real vxavg(lx1*ly1*lz1*lelv)
-c      real vyavg(lx1*ly1*lz1*lelv)
-c      real vzavg(lx1*ly1*lz1*lelv)
-c      real pravg(lx1*ly1*lz1*lelv)
-c      real tavg(lx1*ly1*lz1*lelv)
-c
-c      n=nx1*ny1*nz1*nelv
-c
-c      call blank(fbase,132)
-c      write(fbase,'(a3)')'avg'
-c      ls=ltrunc(SESSION,132)
-c      call chcopy(fbas1(4),SESSION,ls)
-c      ls=ls+4
-c      write(fbas1(ls),'(a3)')'0.f'
-c      ls=ls+3
-c
-c      t0=0.0
-c      if(navg.ne.0.and.nsteps.eq.0) then
-c        call rzero(vxavg,n)
-c        call rzero(vyavg,n)
-c        call rzero(vzavg,n)
-c        call rzero(pravg,n)
-c        call rzero(tavg ,n)
-c        do i=1,navg
-c          call blank(initc(1),132)
-c          call chcopy(initc(1),fbas1(1),ls-1)
-c          if(i.lt.10) then
-c            write(initc(1),'(a15,i1)')'avgttHex0.f0000',i
-c          elseif(i.lt.100) then
-c            write(initc(1),'(a15,i2)')'avgttHex0.f000',i
-c          elseif(i.lt.1000) then
-c            write(initc(1),'(a15,i3)')'avgttHex0.f00',i
-c          endif
-c
-c          call restart(1)
-c
-c          t0=t0+time
-c          call add2s2(vxavg,vx,time,n)
-c          call add2s2(vyavg,vy,time,n)
-c          call add2s2(vzavg,vz,time,n)
-c          call add2s2(pravg,pr,time,n)
-c          call add2s2(tavg ,t ,time,n)
-cc         call nekgsync()
-c        enddo
-c        time=t0
-c        call cmult(vxavg,1.0/t0,n)
-c        call cmult(vyavg,1.0/t0,n)
-c        call cmult(vzavg,1.0/t0,n)
-c        call cmult(pravg,1.0/t0,n)
-c        call cmult(tavg ,1.0/t0,n)
-c
-c        call copy (vx,vxavg,n)
-c        call copy (vy,vyavg,n)
-c        call copy (vz,vzavg,n)
-c        call copy (pr,pravg,n)
-c        call copy (t ,tavg ,n)
-c      endif
-c
-c      return
-c      end
+       real function bc_average(phi,bca,ifld)
+       implicit none
+       include 'SIZE'
+       include 'INPUT'
+
+       character*3 bca
+       integer ifld
+       real phi(lx1*ly1*lz1*lelv)
+
+       integer f,e
+       real phibc,Abc,dphi,dA
+       real glsum
+
+       phibc=0.0
+       Abc=0.0
+ 
+       do e=1,nelt
+         do f=1,ndim*2
+           if(cbc(f,e,ifld).eq.bca) then
+             call surface_int(dphi,dA,phi,e,f)
+             phibc=phibc+dphi
+             Abc=Abc+dA
+           endif
+         enddo
+       enddo
+       Abc=glsum(Abc,1)
+       phibc=glsum(phibc,1)/Abc
+
+       bc_average = phibc
+
+       return
+       end
+c-----------------------------------------------------------------------
+       subroutine average_files(fbase,navg)
+       implicit none
+       include 'SIZE'
+       include 'TOTAL'
+       include 'AVG'
+ 
+       integer navg,n,i,j
+       character*124 fbase
+       character*8   ftail
+ 
+       n=nx1*ny1*nz1*nelv
+ 
+       if(navg.gt.0.and.nsteps.eq.0) then
+         time1=time
+         atime=0.0
+         call rzero(uavg,n)
+         call rzero(vavg,n)
+         call rzero(wavg,n)
+         call rzero(pavg,n)
+         do j=1,ldimt
+           call rzero(tavg(1,1,1,1,j),n)
+         enddo
+         do i=1,navg
+           if(i.lt.10) then
+             write(ftail,'(a7,i1)')'0.f0000',i
+           elseif(i.lt.100) then
+             write(ftail,'(a6,i2)')'0.f000',i
+           elseif(i.lt.1000) then
+             write(ftail,'(a5,i3)')'0.f00',i
+           endif
+           call blank(initc(1),132)
+           initc=trim(fbase)//tail
+ 
+           call restart(1)
+ 
+           atime=atime+time
+           call add2s2(uavg,vx,time,n)
+           call add2s2(vavg,vy,time,n)
+           call add2s2(wavg,vz,time,n)
+           call add2s2(pavg,pr,time,n)
+           do j=1,ldimt
+             call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
+           enddo
+         enddo
+         time=atime
+         call cmult(uavg,1.0/atime,n)
+         call cmult(vavg,1.0/atime,n)
+         call cmult(wavg,1.0/atime,n)
+         call cmult(pavg,1.0/atime,n)
+         do j=1,ldimt
+           call cmult(tavg(1,1,1,1,j),1.0/atime,n)
+         enddo
+ 
+         call copy (vx,uavg,n)
+         call copy (vy,vavg,n)
+         call copy (vz,wavg,n)
+         call copy (pr,pavg,n)
+         do j=1,ldimt
+           call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
+         enddo
+       endif
+ 
+       return
+       end
 c-----------------------------------------------------------------------
