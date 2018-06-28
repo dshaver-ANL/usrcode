@@ -305,6 +305,7 @@ c velocity data to be interpolated from
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
      $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt)
 
 
 c     Gather info for findpts and set up inflow BC

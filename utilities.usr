@@ -952,7 +952,7 @@ c-----------------------------------------------------------------------
 
        call blank(fbase,124)
        do i=1,lbase
-         fbase(i)=inbase(i)
+         fbas1(i)=inbase(i)
        enddo
  
        if(navg.gt.0.and.nsteps.eq.0) then
