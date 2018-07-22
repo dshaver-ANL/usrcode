@@ -84,7 +84,9 @@ C-----------------------------------------------------------------------
       call izero(ukncount,ldimt+1)
 
       do ifld=1,nfield
-        do ielem=1,nelv
+        n=nelv
+        if(iftmsh(ifld+1)) n=nelt
+        do ielem=1,n
         do iside=1,2*ldim
           if(cbc(iside,ielem,ifld).eq.'W  ')then
             wcount(ifld)=wcount(ifld)+1
@@ -795,7 +797,7 @@ c-----------------------------------------------------------------------
 
       real vol,glsum,glmin,glmax,glsc2
       real tmp(lx1*ly1*lz1*lelv)
-      integer i,n1,n2,nt
+      integer i,n1,n2,nt,nf
 
 C     Primitive Variables
       real uxmin,uxmax,uxave,uymin,uymax,uyave,uzmin,uzmax,uzave
@@ -815,10 +817,12 @@ C     Primitive Variables
       call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
       if(ifheat)then
         do i=1,npscal+1
+          nf=n1
+          if(iftmsh(i+1))nf=nt
           if(idpss(i).eq.0) call get_limits(t(1,1,1,1,i),thmin(i) !Helmholtz solver
-     &          ,thmax(i),thave(i),dth(i),tlag(1,1,1,1,1,i),rmsth(i),nt)
+     &          ,thmax(i),thave(i),dth(i),tlag(1,1,1,1,1,i),rmsth(i),nf)
           if(idpss(i).eq.1) call get_limits_nodt(t(1,1,1,1,i) !CVODE solver
-     &                                   ,thmin(i),thmax(i),thave(i),nt)
+     &                                   ,thmin(i),thmax(i),thave(i),nf)
         enddo
       endif
 
