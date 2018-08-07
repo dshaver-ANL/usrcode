@@ -1,4 +1,4 @@
-      subroutine print_outflow(rchar,rloc,rcrd,scrd,tcrd,tke,omeg)
+      subroutine print_outflow(rchar,rloc)
       include 'mpif.h'
       include 'SIZE'
       include 'TOTAL'
@@ -8,16 +8,18 @@
       parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
 
       character rchar
-      integer ifld_k,ifld_o
-      real rloc,rcrd(1),scrd(1),tcrd(1),tke(1),omeg(1),tmploc
+      real rloc,tmploc
+      real rcrd(lx1*ly1*lz1*lelv)
+      real scrd(lx1*ly1*lz1*lelv)
+      real tcrd(lx1*ly1*lz1*lelv)
 
-      character fname*32,cstring*3
+      character fname*32,schar,tchar
+      character*4 tname(ldimt)
       integer ipoint,npts,aflag,lpts(nmax),gpts(lp),gpos(lp),ierr
-      integer i,i0,i1,j,j0,j1,k,k0,k1
+      integer i,i0,i1,j,j0,j1,k,k0,k1,n,npsout
       real norm(3),fnorm(3),dp,vel
-      real lscrd(nmax),ltcrd(nmax),lvel(nmax),ltke(nmax),lomeg(nmax)
-      real gscrd(nmax),gtcrd(nmax),gvel(nmax),gtke(nmax)
-      real gomeg(nmax)
+      real lscrd(nmax),ltcrd(nmax),lvel(nmax),lt(nmax,ldimt)
+      real gscrd(nmax),gtcrd(nmax),gvel(nmax),gt(nmax,ldimt)
 
       data aflag /0/
       save aflag
@@ -25,30 +27,59 @@
       if(aflag.gt.0) return
 
       npts=0
+      n=nx1*ny1*nz1*nelv
 
       call cfill(norm,0.0,3)
-      if(rchar.eq.'x')then
+      if(rchar.eq.'x'.or.rchar.eq.'X')then
         norm(1)=1.0
-        write(cstring,'(a3)') "Y Z"
-      elseif(rchar.eq.'y')then
+        schar="Y"
+        tchar="Z"
+        call copy(rcrd,xm1,n)
+        call copy(scrd,ym1,n)
+        call copy(tcrd,zm1,n)
+      elseif(rchar.eq.'y'.or.rchar.eq.'Y')then
         norm(2)=1.0
-        write(cstring,'(a3)') "Z X"
-      elseif(rchar.eq.'z')then
+        schar="Z"
+        tchar="X"
+        call copy(rcrd,ym1,n)
+        call copy(scrd,zm1,n)
+        call copy(tcrd,xm1,n)
+      elseif(rchar.eq.'z'.or.rchar.eq.'Z')then
         norm(3)=1.0
-        write(cstring,'(a3)') "X Y"
+        schar="X"
+        tchar="Y"
+        call copy(rcrd,zm1,n)
+        call copy(scrd,xm1,n)
+        call copy(tcrd,ym1,n)
+      endif
+
+      npsout=0
+      if(ifheat) then
+        j=0
+        if(ifto) then
+          write(tname(1),'(a4)')"temp"
+          j=j+1
+        endif
+        do i=1,npscal
+          if(ifpsco(i))then
+            write(tname(j+1),'(a2,i2)')"PS",i
+            j=j+1
+          endif
+        enddo
+        npsout=j
       endif
 
       tmploc=get_nearest_face(rloc,rcrd,norm)
 
       do ielem=1,nelv
       do iside=1,2*ldim
-        call get_face_norm(ielem,iside,fnorm)
+        call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
+        i=(i0+i1)/2
+        j=(j0+j1)/2
+        k=(k0+k1)/2
+        call getSnormal(fnorm,i,j,k,iside,ielem)
         dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)+fnorm(3)*norm(3)
         if(abs(1.0-dp).lt.1.0d-8) then
-          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
-          i=(i0+i1)/2
-          j=(j0+j1)/2
-          k=(k0+k1)/2
           ipoint=i+lx1*(j-1)+lx1*ly1*(k-1)+lxyz*(ielem-1)
           if(abs(rcrd(ipoint)-tmploc).lt.1.0d-8) then
             do i=i0,i1
@@ -85,8 +116,19 @@
         vel=vx(ipoint,1,1,1)*norm(1)+vy(ipoint,1,1,1)*norm(2)
         if(if3d) vel=vel+vz(ipoint,1,1,1)*norm(3)
         lvel(i) =vel
-        ltke(i)=tke(ipoint)
-        lomeg(i)=omeg(ipoint)
+        if(ifheat) then
+          k=1
+          if(ifto) then
+            lt(i,1)=t(ipoint,1,1,1,1)
+            k=k+1
+          endif
+          do j=1,npscal
+            if(ifpsco(j))then
+              lt(i,k)=t(ipoint,1,1,1,j+1)
+              k=k+1
+            endif
+          enddo
+        endif
       enddo
 
       call MPI_Gather(npts,1,MPI_INTEGER,gpts,1,MPI_INTEGER,0
@@ -102,19 +144,22 @@
      &                                           ,0,MPI_COMM_WORLD,ierr)
       call MPI_GatherV(lvel ,npts,MPI_DOUBLE,gvel ,gpts,gpos,MPI_DOUBLE
      &                                           ,0,MPI_COMM_WORLD,ierr)
-      call MPI_GatherV(ltke ,npts,MPI_DOUBLE,gtke ,gpts,gpos,MPI_DOUBLE
-     &                                           ,0,MPI_COMM_WORLD,ierr)
-      call MPI_GatherV(lomeg,npts,MPI_DOUBLE,gomeg,gpts,gpos,MPI_DOUBLE
-     &                                           ,0,MPI_COMM_WORLD,ierr)
+      if(ifheat) then
+        do i=1,npsout
+          call MPI_GatherV(lt(1,i),npts,MPI_DOUBLE,gt(1,i),gpts,gpos
+     &                                ,MPI_DOUBLE,0,MPI_COMM_WORLD,ierr)
+        enddo
+      endif
       npts=iglsum(npts,1)
 
       if(nid.eq.0) then
         write(fname,'(a,i3,a)')"outflow.dat"
         open(unit=10,file=fname,status='unknown',form='formatted')
-        write(10,'(i6,1x,a3,1x,a)')npts,cstring,"vel k omega"
-        do i=1,npts
-          write(10,'(5(ES19.12,1x))') gscrd(i),gtcrd(i),gvel(i),gtke(i)
-     &                                                         ,gomeg(i)
+        write(10,'(i6,a14,21a20)')npts,schar,tchar,"velocity"
+     &                                            ,(tname(i),i=1,npsout)
+        do i=1,npts 
+            write(10,'(23(ES20.12))') gscrd(i),gtcrd(i),gvel(i)
+     &                                             ,(gt(i,j),j=1,npsout)
         enddo
         close(10)
         write(*,'(5x,i6,1x,a,a)')

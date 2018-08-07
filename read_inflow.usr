@@ -1,28 +1,45 @@
-      subroutine read_inflow(fname,uin,tke,omeg)
+      subroutine read_inflow(uin,tin)
+      implicit none
       include 'SIZE'
       include 'TOTAL'
 
-      integer lxyz,nmax
+      integer lxyz,nmax,iglsum
       parameter(lxyz=lx1*ly1*lz1)
       parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
 
       character*16 fname
-      real uin(1),tke(1),omeg(1)
+      real uin(1),tin(lx1*ly1*lz1*lelt,1)
 
-      character sdir,tdir
-      integer i,npts,aflag,iset,ntot
-      real scrd(nmax),tcrd(nmax),uf(nmax),kf(nmax),of(nmax)
-
-      if(nid.eq.0) write(*,'(5x,a,1x,a)')
-     & "Setting inflow boundary and initial conditions from file",fname
+      character sdir
+      integer i,j,npts,aflag,iset,ntot,npsf
+      real scrd(nmax),tcrd(nmax),uf(nmax),tf(nmax,ldimt)
 
       aflag=0
       npts=0
       iset=0
       ntot=lxyz*nelv
-      open(unit=25,file=fname,status='old',form='formatted',err=25)
+ 
+      npsf=0
+      if(ifheat) then
+        do i=1,ldimt
+          if(idpss(i).ne.-1) npsf=npsf+1
+        enddo
+      endif
 
-      read(25,*) npts,sdir,tdir
+      if(nio.eq.0) then
+        if(npsf.eq.0) then
+          write(*,'(5x,a,a)')"Setting inflow boundary and 
+     &                 initial conditions for velocity from file ",fname
+        else
+          write(*,'(5x,a,i1,a,a)')"Setting inflow boundary and initial
+     &     conditions for velocty and ",npsf," scalars from file ",fname
+        endif
+      endif
+
+      open(unit=25,file='inflow.dat',status='old'
+     &                                         ,form='formatted',err=25)
+
+      read(25,*) npts,sdir
  26   if(npts.gt.nmax) then !(26) returning from open file error
         if(nid.eq.0) write(*,'(7x,a)')
      &    "Warning: Too many points in inflow file"
@@ -37,27 +54,27 @@
         return
       endif
 
-      if(nid.eq.0) then
+      if(nio.eq.0) then
         write(*,'(7x,a,i5,a)')'reading ',npts,' points'
         write(*,*)
       endif
       do i=1,npts
-        read(25,*) scrd(i),tcrd(i),uf(i),kf(i),of(i)
-        if(nid.eq.0.and.npts.le.300) write(*,'(i3,5(es19.12))')
-     &     i,scrd(i),tcrd(i),uf(i),kf(i),of(i)
+        read(25,*) scrd(i),tcrd(i),uf(i),(tf(i,j),j=1,npsf)
+        if(nid.eq.0.and.npts.le.300) write(*,'(i3,25es19.12)')
+     &     i,scrd(i),tcrd(i),uf(i),(tf(i,j),j=1,npsf)
       enddo
       close(25)
       if(nid.eq.0) write(*,*)
 
       if(sdir.eq.'Y')then !uf=ux, compare y,z coordinates
-        call set_bc_arrays(ym1,zm1,uin,tke,omeg,ntot
-     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+        call set_bc_arrays(ym1,zm1,uin,tin,ntot
+     &                               ,scrd,tcrd,uf,tf,npts,npsf,iset)
       elseif(sdir.eq.'Z')then !uf=uy, compare z,x coordinates
-        call set_bc_arrays(zm1,xm1,uin,tke,omeg,ntot
-     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+        call set_bc_arrays(zm1,xm1,uin,tin,ntot
+     &                               ,scrd,tcrd,uf,tf,npts,npsf,iset)
       else !uf=uz, compare x,y coordinates
-        call set_bc_arrays(xm1,ym1,uin,tke,omeg,ntot
-     &                                    ,scrd,tcrd,uf,kf,of,npts,iset)
+        call set_bc_arrays(xm1,ym1,uin,tin,ntot
+     &                               ,scrd,tcrd,uf,tf,npts,npsf,iset)
       endif
 
       iset=iglsum(iset,1)
@@ -74,24 +91,31 @@
 
       end
 C-----------------------------------------------------------------------
-      subroutine set_bc_arrays(s1,t1,u1,k1,o1,n1,s2,t2,u2,k2,o2,n2,iset)
+      subroutine set_bc_arrays(x1,y1,u1,t1,n1,x2,y2,u2,t2,n2,n3,iset)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
 
-      real s1(1),t1(1),u1(1),k1(1),o1(1)
-      real s2(1),t2(1),u2(1),k2(1),o2(1)
-      integer n1,n2,i,j
+      integer nmax
+      parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
+      real x1(1),y1(1),u1(1),t1(lx1*ly1*lz1*lelt,1)
+      real x2(1),y2(1),u2(1),t2(nmax,1)
+      integer n1,n2,n3,i,j,k,iset
 
       do i=1,n1
         do j=1,n2
-          if((abs(s1(i)-s2(j)).lt.1.0d-6).and.
-     &                                (abs(t1(i)-t2(j)).lt.1.0d-6)) then
+          if((abs(x1(i)-x2(j)).lt.1.0d-6).and.
+     &                                (abs(y1(i)-y2(j)).lt.1.0d-6)) then
             u1(i)=u2(j)
-            k1(i)=k2(j)
-            o1(i)=o2(j)
+            do k=1,n3
+              t1(i,k)=t2(j,k)
+            enddo
             iset=iset+1
             goto 25
           endif
         enddo
- 25   enddo
+ 25     continue
+      enddo
 
       return
       end
