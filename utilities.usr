@@ -61,27 +61,29 @@ C-----------------------------------------------------------------------
 
       integer lxyz,ielem,iside,n
       parameter(lxyz=lx1*ly1*lz1)
-      character*3 uid(ldimt+1)
-      integer wcount(ldimt+1),symcount(ldimt+1),ocount(ldimt+1)
-      integer tcount(ldimt+1),fcount(ldimt+1),axicount(ldimt+1)
-      integer inscount(ldimt+1),pcount(ldimt+1),othcount(ldimt+1)
-      integer vcount(ldimt+1),trcount(ldimt+1),ukncount(ldimt+1)
-      integer vreacount(ldimt+1),treacount(ldimt+1)
+      character*3 uid(ldimt1)
+      integer wcount(ldimt1),symcount(ldimt1),ocount(ldimt1)
+      integer tcount(ldimt1),fcount(ldimt1),axicount(ldimt1)
+      integer inscount(ldimt1),pcount(ldimt1),othcount(ldimt1)
+      integer vcount(ldimt1),trcount(ldimt1),ukncount(ldimt1)
+      integer mtrcount(ldimt1)
+      integer vreacount(ldimt1),treacount(ldimt1)
 
-      call izero(wcount,ldimt+1)
-      call izero(trcount,ldimt+1)
-      call izero(vcount,ldimt+1)
-      call izero(vreacount,ldimt+1)
-      call izero(symcount,ldimt+1)
-      call izero(ocount,ldimt+1)
-      call izero(tcount,ldimt+1)
-      call izero(treacount,ldimt+1)
-      call izero(axicount,ldimt+1)
-      call izero(inscount,ldimt+1)
-      call izero(fcount,ldimt+1)
-      call izero(pcount,ldimt+1)
-      call izero(othcount,ldimt+1)
-      call izero(ukncount,ldimt+1)
+      call izero(wcount,ldimt1)
+      call izero(trcount,ldimt1)
+      call izero(mtrcount,ldimt1)
+      call izero(vcount,ldimt1)
+      call izero(vreacount,ldimt1)
+      call izero(symcount,ldimt1)
+      call izero(ocount,ldimt1)
+      call izero(tcount,ldimt1)
+      call izero(treacount,ldimt1)
+      call izero(axicount,ldimt1)
+      call izero(inscount,ldimt1)
+      call izero(fcount,ldimt1)
+      call izero(pcount,ldimt1)
+      call izero(othcount,ldimt1)
+      call izero(ukncount,ldimt1)
 
       do ifld=1,nfield
         n=nelv
@@ -92,6 +94,8 @@ C-----------------------------------------------------------------------
             wcount(ifld)=wcount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'shl')then
             trcount(ifld)=trcount(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'sml')then
+            mtrcount(ifld)=mtrcount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'v  ')then
             vcount(ifld)=vcount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'V  ')then
@@ -126,6 +130,7 @@ C-----------------------------------------------------------------------
         enddo
         wcount(ifld)=iglsum(wcount(ifld),1)
         trcount(ifld)=iglsum(trcount(ifld),1)
+        mtrcount(ifld)=iglsum(mtrcount(ifld),1)
         vcount(ifld)=iglsum(vcount(ifld),1)
         vreacount(ifld)=iglsum(vreacount(ifld),1)
         tcount(ifld)=iglsum(tcount(ifld),1)
@@ -148,6 +153,8 @@ C-----------------------------------------------------------------------
           write(*,254) 'for field',ifld,':'
           if(wcount(ifld).gt.0)write(*,256)'Wall',wcount(ifld)
           if(trcount(ifld).gt.0)write(*,256)'Traction',trcount(ifld)
+          if(mtrcount(ifld).gt.0)write(*,256)'Mixed Traction'
+     &                                                   ,mtrcount(ifld)
           if(vcount(ifld).gt.0)write(*,256)'Velocity',vcount(ifld)
           if(vreacount(ifld).gt.0)write(*,256)'Velocity (REA)',
      &                                                   vreacount(ifld)
