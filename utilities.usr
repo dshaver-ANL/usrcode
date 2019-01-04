@@ -853,7 +853,7 @@ C     Primitive Variables
         write(*,*)
       endif
 
-      call copy(prlag,pr,n2)
+c     call copy(prlag,pr,n2)  no longer necessary as of commit 6616c87a0f9ecd946701dc7e43b997350a2a57b9
 
  254  format(a15,5a13)
  255  format(a15,5es13.4)
