@@ -1,5 +1,5 @@
 c-----------------------------------------------------------------------
-      real function planar_average(phi,norm,pt,eps)
+      real function planar_ave(phi,norm,pt,eps)
       implicit none
 C
 C     Compute area average of phi() on the
@@ -804,7 +804,7 @@ C     Primitive Variables
       n2=nx2*ny2*nz2*nelv
       nt=nx1*ny1*nz1*nelt
 
-      if(iflow) then
+      if(ifflow) then
         call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
         call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
        if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
