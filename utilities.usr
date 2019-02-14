@@ -1,56 +1,42 @@
 c-----------------------------------------------------------------------
-      subroutine area_average(phi,loc,coord,norm,phia)
+      real function planar_average(phi,norm,pt,eps)
+      implicit none
 C
 C     Compute area average of phi() on the
-C     plane normal to norm() with intercept coord = loc
+C     plane defined by normal 'norm' and point 'pt'
 C
       include 'SIZE'
       include 'TOTAL'
 
-      integer ielem,iside,i,i0,i1,j,j0,j1,k,k0,k1
-      real phi(1),wrt(1),loc,coord(1),norm(3),phia
-      real fnorm(3),dp,a1,phia1
+      real phi(1),norm(3),pt(3),eps
+      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,glsum
 
-      loc=get_nearest_face(loc,coord,norm)
+      integer i,j,k,n
 
-      phia=0.0
-      phia1=0.0
-      do ielem=1,nelv
-        do iside=1,ndim*2
-          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,iside)
-          i=(i0+i1)/2  !just use the point in the middle of the face
-          j=(j0+j1)/2
-          k=(k0+k1)/2
-          ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(ielem-1)*lx1*ly1*lz1
-          if(abs(coord(ipoint)-loc).lt.1.0d-8)then
-            call getSnormal(fnorm,i,j,k,iside,ielem)
-            dp=fnorm(1)*norm(1)+fnorm(2)*norm(2)
-            if(if3d) dp=dp+fnorm(3)*norm(3)
-            if(abs(1.0d0-dp).lt.1.0d-8) then
-              do i=i0,i1
-              do j=j0,j1
-              do k=k0,k1
-                ipoint=i+(j-1)*lx1+(k-1)*lx1*ly1+(ielem-1)*lx1*ly1*lz1
-                if    ((iside.eq.1).or.(iside.eq.3)) then
-                  a1=area(i,k,iside,ielem)
-                elseif((iside.eq.2).or.(iside.eq.4)) then
-                  a1=area(j,k,iside,ielem)
-                else
-                  a1=area(i,j,iside,ielem)
-                endif
-                phia=phia+phi(ipoint)*a1
-                phia1=phia1+a1
-              enddo
-              enddo
-              enddo
-            endif
-          endif
-        enddo
+      n=nx1*ny1*nz1*nelv
+
+      aa=norm(1)
+      bb=norm(2) 
+      cc=0.0
+      if(if3d) cc=norm(3)
+      dd=-1.0*(aa*pt(1)+bb*pt(2)+cc*pt(3))
+      w1=0.0
+      w2=0.0
+      do i=1,n
+        x0=xm1(i,1,1,1)
+        y0=ym1(i,1,1,1)
+        z0=zm1(i,1,1,1)
+        r0=(aa*x0+bb*y0+cc*z0+dd)/sqrt(aa**2+bb**2+cc**2)
+        rr=min(2.0,abs(r0)*2.0/eps)
+        if(rr.gt.1.0) then
+          del = 1.0/8.0*(5.0-2.0*rr-sqrt(-7.0+12.0*rr-4.0*rr**2))
+        else 
+          del = 1.0/8.0*(3.0-2.0*rr+sqrt( 1.0+ 4.0*rr-4.0*rr**2))
+        endif
+        w1=w1+phi(i)*bm1(i,1,1,1)*del
+        w2=w2+bm1(i,1,1,1)*del
       enddo
-
-      phia=glsum(phia,1)
-      phia1=glsum(phia1,1)
-      phia=phia/phia1
+      planar_ave = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
 
       return
       end
@@ -176,8 +162,8 @@ C-----------------------------------------------------------------------
 
  254  format(5x,a,i2,a)
  255  format(2x,a)
- 256  format(2x,a16,1x,i6)
- 257  format(2x,'Unknown boundary of type: "',a,'" ',i6)
+ 256  format(2x,a16,1x,i9)
+ 257  format(2x,'Unknown boundary of type: "',a,'" ',i9)
 
       return
       end
