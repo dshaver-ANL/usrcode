@@ -132,7 +132,7 @@ c-----------------------------------------------------------------------
 
       if (nid.eq.0.and.(istep.le.100.or.mod(istep,100).eq.0))
      $  write(6,1) istep,time,scale,ubar,abar
-    1   format(1i8,1p4e14.6,' rescale')
+    1   format(i11,1p4e14.6,' rescale')
 
 c     Rescale the flow to match ubar_in
       do e=1,nelv
@@ -188,6 +188,100 @@ c-----------------------------------------------------------------------
       vvflux = glsum(vvflux,1)
       vvarea = glsum(vvarea,1)
       vvflux = -vvflux !flux in is negative
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rescale_tinflow_fpt(tbar_in,ifld)  ! rescale inflow
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer icalld,e,eg,f,ifld
+      save    icalld
+      data    icalld /0/
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt)
+      real get_tbar
+
+      tbar  = get_tbar(ifld)
+      scale = tbar_in - tbar
+
+      if (nid.eq.0.and.(istep.le.100.or.mod(istep,100).eq.0))
+     $  write(6,1) istep,time,scale,tbar,tbar_in,ifld+1
+  1     format(i11,1p4e14.6,' rescale for field',i3)
+
+c     Rescale the flow to match tbar_in
+      do e=1,nelv
+      do f=1,2*ldim
+        if (cbc(f,e,1).eq.'v  ') then
+           call facind (kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
+           do iz=kz1,kz2
+           do iy=ky1,ky2
+           do ix=kx1,kx2
+              tin(ix,iy,iz,e,ifld) = tin(ix,iy,iz,e,ifld)+scale
+           enddo
+           enddo
+           enddo
+        endif
+      enddo
+      enddo
+
+c     ifield = 1       ! Project into H1, just to be sure....
+c     call dsavg(uin)
+c     call dsavg(vin)
+c     if (ldim.eq.3) call dsavg(win)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real function get_tbar(ifld)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      real uin,vin,win,tin
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     &              , tin(lx1,ly1,lz1,lelv,ldimt)
+      real maflux,vtflux,glsum,dm,dq
+      real txflux(lx1*ly1*lz1*lelv)
+      real tyflux(lx1*ly1*lz1*lelv)
+      real tzflux(lx1*ly1*lz1*lelv)
+      real mxflux(lx1*ly1*lz1*lelv)
+      real myflux(lx1*ly1*lz1*lelv)
+      real mzflux(lx1*ly1*lz1*lelv)
+      real work(lx1*ly1*lz1)
+      integer e,f,ifld,nv,nface
+
+      nv    = nx1*ny1*nz1*nelv
+      nface = 2*ndim
+
+      call col3(mxflux,uin,vtrans(1,1,1,1,ifld+1),nv)
+      call col3(myflux,vin,vtrans(1,1,1,1,ifld+1),nv)
+      call col3(mzflux,win,vtrans(1,1,1,1,ifld+1),nv)
+
+      call col4(txflux,uin,tin(1,1,1,1,ifld),vtrans(1,1,1,1,ifld+1),nv)
+      call col4(tyflux,vin,tin(1,1,1,1,ifld),vtrans(1,1,1,1,ifld+1),nv)
+      call col4(tzflux,win,tin(1,1,1,1,ifld),vtrans(1,1,1,1,ifld+1),nv)
+
+      maflux = 0.
+      vtflux = 0.
+
+      do e=1,nelv
+      do f=1,nface
+         if (cbc(f,e,1).eq.'v  ') then
+            call surface_flux(dm,mxflux,myflux,mzflux,e,f,work)
+            call surface_flux(dq,txflux,tyflux,tzflux,e,f,work)
+            maflux = maflux + dm
+            vtflux = vtflux + dq
+         endif
+      enddo
+      enddo
+      maflux = -glsum(maflux,1)
+      vtflux = -glsum(vtflux,1)
+      get_tbar = vtflux/maflux
 
       return
       end
@@ -278,7 +372,7 @@ c     Call findpts to determine el,proc,rst of the xyzs determined above
       return
       end
 C-----------------------------------------------------------------------
-      subroutine set_inflow_fpt(dxx,dyy,dzz,ubar)   ! set up inflow BCs
+      subroutine set_inflow_fpt(dxx,dyy,dzz,ubar,tbar)   ! set up inflow BCs
       include 'SIZE'
       include 'TOTAL'
 
@@ -290,6 +384,7 @@ c velocity data to be interpolated from
       save    icalld
       data    icalld /0/
       real dxx,dyy,dzz
+      real ubar,tbar(ldimt)
 
       parameter (lt=lx1*lz1*lelv)
       real rst_si(lt*ldim),xyz_si(lt*ldim)
@@ -305,7 +400,7 @@ c velocity data to be interpolated from
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
      $              , win(lx1,ly1,lz1,lelv)
-     $              , tin(lx1,ly1,lz1,lelv,ldimt)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt) 
 
 
 c     Gather info for findpts and set up inflow BC
@@ -313,27 +408,30 @@ c     Gather info for findpts and set up inflow BC
       icalld=1
 
 
-c     Eval fields and copy to uvwin array
-      call field_eval_si(vals_si,1,vx)
-      call field_copy_si(uin,vals_si,ptid,nptsi)
+      if(ifflow) then
+c       Eval fields and copy to uvwin array
+        call field_eval_si(vals_si,1,vx)
+        call field_copy_si(uin,vals_si,ptid,nptsi)
 
-      call field_eval_si(vals_si,1,vy)
-      call field_copy_si(vin,vals_si,ptid,nptsi)
+        call field_eval_si(vals_si,1,vy)
+        call field_copy_si(vin,vals_si,ptid,nptsi)
 
-      if (ldim.eq.3) then
-        call field_eval_si(vals_si,1,vz)
-        call field_copy_si(win,vals_si,ptid,nptsi)
+        if (ldim.eq.3) then
+          call field_eval_si(vals_si,1,vz)
+          call field_copy_si(win,vals_si,ptid,nptsi)
+        endif
+
+c       Rescale the flow so that ubar,vbar or wbar is ubar
+        call rescale_inflow_fpt(ubar)
       endif
 
       do i=1,ldimt
-        if(iffield(i))then
+        if(iffield(i)) then
           call field_eval_si(vals_si,1,t(1,1,1,1,i))
           call field_copy_si(tin(1,1,1,1,i),vals_si,ptid,nptsi)
+          if(i.eq.1) call rescale_tinflow_fpt(tbar(i),i) !only temperature needs to be rescaled
         endif
       enddo
-
-c     Rescale the flow so that ubar,vbar or wbar is ubar
-      call rescale_inflow_fpt(ubar)
 
       return
       end

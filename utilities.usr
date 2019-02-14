@@ -804,11 +804,13 @@ C     Primitive Variables
       n2=nx2*ny2*nz2*nelv
       nt=nx1*ny1*nz1*nelt
 
-      call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
-      call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
-      if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
-      call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
-      if(ifheat)then
+      if(iflow) then
+        call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
+        call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
+       if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
+        call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
+      endif
+      if(ifheat) then
         do i=1,npscal+1
           nf=n1
           if(iftmsh(i+1))nf=nt
@@ -822,10 +824,12 @@ C     Primitive Variables
       if(nio.eq.0) then
         write(*,*)
         write(*,254) 'limits','min','max','ave','max d/dt','rms d/dt'
-        write(*,255) 'u velocity',uxmin,uxmax,uxave,dux,rmsux
-        write(*,255) 'v velocity',uymin,uymax,uyave,duy,rmsuy
-        if(if3d) write(*,255) 'w velocity',uzmin,uzmax,uzave,duz,rmsuz
-        write(*,255) 'pressure',prmin,prmax,prave,dpr,rmspr
+        if(ifflow) then
+          write(*,255) 'u velocity',uxmin,uxmax,uxave,dux,rmsux
+          write(*,255) 'v velocity',uymin,uymax,uyave,duy,rmsuy
+          if(if3d) write(*,255) 'w velocity',uzmin,uzmax,uzave,duz,rmsuz
+          write(*,255) 'pressure',prmin,prmax,prave,dpr,rmspr
+        endif
         if(ifheat) then
           do i=1,npscal+1
             if(i.eq.1) write(tname,'(a15)') "temperature"
