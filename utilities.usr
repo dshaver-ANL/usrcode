@@ -52,7 +52,7 @@ C-----------------------------------------------------------------------
       integer tcount(ldimt1),fcount(ldimt1),axicount(ldimt1)
       integer inscount(ldimt1),pcount(ldimt1),othcount(ldimt1)
       integer vcount(ldimt1),trcount(ldimt1),ukncount(ldimt1)
-      integer mtrcount(ldimt1)
+      integer mtrcount(ldimt1),prcount(ldimt1)
       integer vreacount(ldimt1),treacount(ldimt1)
 
       call izero(wcount,ldimt1)
@@ -68,6 +68,7 @@ C-----------------------------------------------------------------------
       call izero(inscount,ldimt1)
       call izero(fcount,ldimt1)
       call izero(pcount,ldimt1)
+      call izero(prcount,ldimt1)
       call izero(othcount,ldimt1)
       call izero(ukncount,ldimt1)
 
@@ -92,6 +93,8 @@ C-----------------------------------------------------------------------
             treacount(ifld)=treacount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'O  ')then
             ocount(ifld)=ocount(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'o  ')then
+            prcount(ifld)=prcount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'P  ')then
             pcount(ifld)=pcount(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'f  ')then 
@@ -123,6 +126,7 @@ C-----------------------------------------------------------------------
         treacount(ifld)=iglsum(treacount(ifld),1)
         ocount(ifld)=iglsum(ocount(ifld),1)
         pcount(ifld)=iglsum(pcount(ifld),1)
+        prcount(ifld)=iglsum(prcount(ifld),1)
         fcount(ifld)=iglsum(fcount(ifld),1)
         inscount(ifld)=iglsum(inscount(ifld),1)
         symcount(ifld)=iglsum(symcount(ifld),1)
@@ -150,6 +154,7 @@ C-----------------------------------------------------------------------
           if(pcount(ifld).gt.0)write(*,256)'Periodic',pcount(ifld)
           if(fcount(ifld).gt.0)write(*,256)'Flux',fcount(ifld)
           if(ocount(ifld).gt.0)write(*,256)'Outlet',ocount(ifld)
+          if(prcount(ifld).gt.0)write(*,256)'Pressure',prcount(ifld)
           if(inscount(ifld).gt.0)write(*,256)'Insulated',inscount(ifld)
           if(symcount(ifld).gt.0)write(*,256)'Symmetry',symcount(ifld)
           if(axicount(ifld).gt.0)write(*,256)
