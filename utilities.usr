@@ -943,6 +943,37 @@ c-----------------------------------------------------------------------
        return
        end
 c-----------------------------------------------------------------------
+       real function bc_max(phi,bca,ifld)
+       implicit none
+       include 'SIZE'
+       include 'INPUT'
+
+       character*3 bca
+       integer ifld
+       real phi(lx1,ly1,lz1,1)
+
+       real glmax
+
+       integer f,e,i,i0,i1,j,j0,j1,k,k0,k1
+       real bcmx
+
+       do 10 e=1,nelt
+       do 10 f=1,ndim*2
+         if(cbc(f,e,ifld).eq.bca) then
+           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,f)
+           do 20 k=k0,k1
+           do 20 j=j0,j1
+           do 20 i=i0,i1
+             bcmx=max(bcmx,phi(i,j,k,e))
+ 20        continue
+         endif
+ 10    continue
+
+       bc_max = glmax(bcmx,1)
+
+       return
+       end
+c-----------------------------------------------------------------------
        subroutine average_files(inbase,lbase,navg)
        implicit none
        include 'SIZE'
