@@ -62,28 +62,29 @@ C-----------------------------------------------------------------------
       integer lxyz,ielem,iside,n
       parameter(lxyz=lx1*ly1*lz1)
       character*3 uid(ldimt1)
-      integer wcount(ldimt1),symcount(ldimt1),ocount(ldimt1)
-      integer tcount(ldimt1),fcount(ldimt1),axicount(ldimt1)
-      integer inscount(ldimt1),pcount(ldimt1),othcount(ldimt1)
-      integer vcount(ldimt1),trcount(ldimt1),ukncount(ldimt1)
-      integer mtrcount(ldimt1)
-      integer vreacount(ldimt1),treacount(ldimt1)
+      integer wcnt(ldimt1),symcnt(ldimt1),ocnt(ldimt1)
+      integer tcnt(ldimt1),fcnt(ldimt1),axicnt(ldimt1)
+      integer inscnt(ldimt1),pcnt(ldimt1),othcnt(ldimt1)
+      integer vcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
+      integer mtrcnt(ldimt1),intcnt(ldimt1)
+      integer vreacnt(ldimt1),treacnt(ldimt1)
 
-      call izero(wcount,ldimt1)
-      call izero(trcount,ldimt1)
-      call izero(mtrcount,ldimt1)
-      call izero(vcount,ldimt1)
-      call izero(vreacount,ldimt1)
-      call izero(symcount,ldimt1)
-      call izero(ocount,ldimt1)
-      call izero(tcount,ldimt1)
-      call izero(treacount,ldimt1)
-      call izero(axicount,ldimt1)
-      call izero(inscount,ldimt1)
-      call izero(fcount,ldimt1)
-      call izero(pcount,ldimt1)
-      call izero(othcount,ldimt1)
-      call izero(ukncount,ldimt1)
+      call izero(wcnt,ldimt1)
+      call izero(trcnt,ldimt1)
+      call izero(mtrcnt,ldimt1)
+      call izero(vcnt,ldimt1)
+      call izero(vreacnt,ldimt1)
+      call izero(symcnt,ldimt1)
+      call izero(ocnt,ldimt1)
+      call izero(tcnt,ldimt1)
+      call izero(treacnt,ldimt1)
+      call izero(axicnt,ldimt1)
+      call izero(inscnt,ldimt1)
+      call izero(intcnt,ldimt1)
+      call izero(fcnt,ldimt1)
+      call izero(pcnt,ldimt1)
+      call izero(othcnt,ldimt1)
+      call izero(ukncnt,ldimt1)
 
       do ifld=1,nfield
         n=nelv
@@ -91,58 +92,60 @@ C-----------------------------------------------------------------------
         do ielem=1,n
         do iside=1,2*ldim
           if(cbc(iside,ielem,ifld).eq.'W  ')then
-            wcount(ifld)=wcount(ifld)+1
+            wcnt(ifld)=wcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'shl')then
-            trcount(ifld)=trcount(ifld)+1
+            trcnt(ifld)=trcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'sml')then
-            mtrcount(ifld)=mtrcount(ifld)+1
+            mtrcnt(ifld)=mtrcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'v  ')then
-            vcount(ifld)=vcount(ifld)+1
+            vcnt(ifld)=vcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'V  ')then
-            vreacount(ifld)=vreacount(ifld)+1
+            vreacnt(ifld)=vreacnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'t  ')then
-            tcount(ifld)=tcount(ifld)+1
+            tcnt(ifld)=tcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'T  ')then
-            treacount(ifld)=treacount(ifld)+1
+            treacnt(ifld)=treacnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'O  ')then
-            ocount(ifld)=ocount(ifld)+1
+            ocnt(ifld)=ocnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'P  ')then
-            pcount(ifld)=pcount(ifld)+1
+            pcnt(ifld)=pcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'f  ')then 
-            fcount(ifld)=fcount(ifld)+1
+            fcnt(ifld)=fcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'I  ')then
-            inscount(ifld)=inscount(ifld)+1
+            inscnt(ifld)=inscnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'SYM')then
-            symcount(ifld)=symcount(ifld)+1
+            symcnt(ifld)=symcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'A  ')then
-            axicount(ifld)=axicount(ifld)+1
+            axicnt(ifld)=axicnt(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'int')then
+            intcnt(ifld)=intcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).ne.'E  ')then
-            if(ukncount(ifld).eq.0) then  !handle one unknown BC
+            if(ukncnt(ifld).eq.0) then  !handle one unknown BC
               uid(ifld)=cbc(iside,ielem,ifld)
-              ukncount(ifld)=1
+              ukncnt(ifld)=1
             elseif(cbc(iside,ielem,ifld).eq.uid(ifld)) then
-              ukncount(ifld)=ukncount(ifld)+1
+              ukncnt(ifld)=ukncnt(ifld)+1
             else
-              othcount(ifld)=othcount(ifld)+1 !multiple unknown BCs 
+              othcnt(ifld)=othcnt(ifld)+1 !multiple unknown BCs 
             endif
           endif
         enddo
         enddo
-        wcount(ifld)=iglsum(wcount(ifld),1)
-        trcount(ifld)=iglsum(trcount(ifld),1)
-        mtrcount(ifld)=iglsum(mtrcount(ifld),1)
-        vcount(ifld)=iglsum(vcount(ifld),1)
-        vreacount(ifld)=iglsum(vreacount(ifld),1)
-        tcount(ifld)=iglsum(tcount(ifld),1)
-        treacount(ifld)=iglsum(treacount(ifld),1)
-        ocount(ifld)=iglsum(ocount(ifld),1)
-        pcount(ifld)=iglsum(pcount(ifld),1)
-        fcount(ifld)=iglsum(fcount(ifld),1)
-        inscount(ifld)=iglsum(inscount(ifld),1)
-        symcount(ifld)=iglsum(symcount(ifld),1)
-        axicount(ifld)=iglsum(axicount(ifld),1)
-        othcount(ifld)=iglsum(othcount(ifld),1)
-        ukncount(ifld)=iglsum(ukncount(ifld),1)
+        wcnt(ifld)=iglsum(wcnt(ifld),1)
+        trcnt(ifld)=iglsum(trcnt(ifld),1)
+        mtrcnt(ifld)=iglsum(mtrcnt(ifld),1)
+        vcnt(ifld)=iglsum(vcnt(ifld),1)
+        vreacnt(ifld)=iglsum(vreacnt(ifld),1)
+        tcnt(ifld)=iglsum(tcnt(ifld),1)
+        treacnt(ifld)=iglsum(treacnt(ifld),1)
+        ocnt(ifld)=iglsum(ocnt(ifld),1)
+        pcnt(ifld)=iglsum(pcnt(ifld),1)
+        fcnt(ifld)=iglsum(fcnt(ifld),1)
+        inscnt(ifld)=iglsum(inscnt(ifld),1)
+        symcnt(ifld)=iglsum(symcnt(ifld),1)
+        axicnt(ifld)=iglsum(axicnt(ifld),1)
+        othcnt(ifld)=iglsum(othcnt(ifld),1)
+        ukncnt(ifld)=iglsum(ukncnt(ifld),1)
       enddo
 
       if(nid.eq.0) then
@@ -151,25 +154,26 @@ C-----------------------------------------------------------------------
         write(*,*)
         do ifld=1,nfield
           write(*,254) 'for field',ifld,':'
-          if(wcount(ifld).gt.0)write(*,256)'Wall',wcount(ifld)
-          if(trcount(ifld).gt.0)write(*,256)'Traction',trcount(ifld)
-          if(mtrcount(ifld).gt.0)write(*,256)'Mixed Traction'
-     &                                                   ,mtrcount(ifld)
-          if(vcount(ifld).gt.0)write(*,256)'Velocity',vcount(ifld)
-          if(vreacount(ifld).gt.0)write(*,256)'Velocity (REA)',
-     &                                                   vreacount(ifld)
-          if(tcount(ifld).gt.0)write(*,256)'Dirichlet',tcount(ifld)
-          if(treacount(ifld).gt.0)write(*,256)'Dirichlet (REA)',
-     &                                                   treacount(ifld)
-          if(pcount(ifld).gt.0)write(*,256)'Periodic',pcount(ifld)
-          if(fcount(ifld).gt.0)write(*,256)'Flux',fcount(ifld)
-          if(ocount(ifld).gt.0)write(*,256)'Outlet',ocount(ifld)
-          if(inscount(ifld).gt.0)write(*,256)'Insulated',inscount(ifld)
-          if(symcount(ifld).gt.0)write(*,256)'Symmetry',symcount(ifld)
-          if(axicount(ifld).gt.0)write(*,256)
-     &                                     'Axisymmetric',axicount(ifld)
-          if(ukncount(ifld).gt.0)write(*,257)uid(ifld),ukncount(ifld)
-          if(othcount(ifld).gt.0)write(*,256)'Other',othcount(ifld)
+          if(wcnt(ifld).gt.0)write(*,256)'Wall',wcnt(ifld)
+          if(trcnt(ifld).gt.0)write(*,256)'Traction',trcnt(ifld)
+          if(mtrcnt(ifld).gt.0)write(*,256)'Mixed Traction'
+     &                                                   ,mtrcnt(ifld)
+          if(vcnt(ifld).gt.0)write(*,256)'Velocity',vcnt(ifld)
+          if(vreacnt(ifld).gt.0)write(*,256)'Velocity (REA)',
+     &                                                   vreacnt(ifld)
+          if(tcnt(ifld).gt.0)write(*,256)'Dirichlet',tcnt(ifld)
+          if(treacnt(ifld).gt.0)write(*,256)'Dirichlet (REA)',
+     &                                                   treacnt(ifld)
+          if(pcnt(ifld).gt.0)write(*,256)'Periodic',pcnt(ifld)
+          if(fcnt(ifld).gt.0)write(*,256)'Flux',fcnt(ifld)
+          if(ocnt(ifld).gt.0)write(*,256)'Outlet',ocnt(ifld)
+          if(inscnt(ifld).gt.0)write(*,256)'Insulated',inscnt(ifld)
+          if(intcnt(ifld).gt.0)write(*,256)'Interpolated',intcnt(ifld)
+          if(symcnt(ifld).gt.0)write(*,256)'Symmetry',symcnt(ifld)
+          if(axicnt(ifld).gt.0)write(*,256)
+     &                                     'Axisymmetric',axicnt(ifld)
+          if(ukncnt(ifld).gt.0)write(*,257)uid(ifld),ukncnt(ifld)
+          if(othcnt(ifld).gt.0)write(*,256)'Other',othcnt(ifld)
           write(*,*)
         enddo
       endif
