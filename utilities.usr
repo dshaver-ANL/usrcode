@@ -1126,3 +1126,42 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine get_elem_m1centroid(xx,yy,zz,ie)
+      implicit none
+      include 'SIZE'
+      include 'GEOM'
+      include 'MASS'
+
+      integer ie
+      real xx,yy,zz
+
+      integer ipt
+      real bb
+
+      xx=0.0
+      yy=0.0
+      zz=0.0
+      bb=0.0
+      do ipt = 1,lx1*ly1*lz1
+        xx=xx+xm1(ipt,1,1,ie)*bm1(ipt,1,1,ie)
+        yy=yy+ym1(ipt,1,1,ie)*bm1(ipt,1,1,ie)
+        zz=zz+zm1(ipt,1,1,ie)*bm1(ipt,1,1,ie)
+        bb=bb+bm1(ipt,1,1,ie)
+      enddo
+      xx=xx/bb
+      yy=yy/bb
+      zz=zz/bb
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rotate_point_2d(x1,y1,x0,y0,theta,xo,yo)
+      implicit none
+
+      real x1,y1,x0,y0,theta,xo,yo
+
+      xo=(x1-x0)*cos(theta)-(y1-y0)*sin(theta)+x0
+      yo=(x1-x0)*sin(theta)+(y1-y0)*cos(theta)+y0
+
+      return
+      end
