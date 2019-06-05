@@ -3,8 +3,8 @@
       include 'SIZE'
       include 'TOTAL'
 
-      integer lxyz,nmax
-      parameter(lxyz=lx1*ly1*lz1)
+      integer lxyz,nmax,lpmax
+      parameter(lxyz=lx1*ly1*lz1, lpmax = 128)
       parameter(nmax=max(lelx*max(lely,lelz),lely*lelz)*lx1*lx1)
 
       character rchar
@@ -15,7 +15,7 @@
 
       character fname*32,schar,tchar
       character*4 tname(ldimt)
-      integer ipoint,npts,aflag,lpts(nmax),gpts(lp),gpos(lp),ierr
+      integer ipoint,npts,aflag,lpts(nmax),gpts(lpmax),gpos(lpmax),ierr
       integer i,i0,i1,j,j0,j1,k,k0,k1,n,npsout
       real norm(3),fnorm(3),dp,vel
       real lscrd(nmax),ltcrd(nmax),lvel(nmax),lt(nmax,ldimt)
@@ -24,6 +24,11 @@
       data aflag /0/
       save aflag
       
+      if(np.gt.lpmax) then
+        if(nio.eq.0) write(6,*)
+     &                      "Not configured for more than 128 processes"
+        return
+      endif
       if(aflag.gt.0) return
 
       npts=0
@@ -36,14 +41,19 @@
         tchar="Z"
         call copy(rcrd,xm1,n)
         call copy(scrd,ym1,n)
-        call copy(tcrd,zm1,n)
+        if(if3d) call copy(tcrd,zm1,n)
       elseif(rchar.eq.'y'.or.rchar.eq.'Y')then
         norm(2)=1.0
-        schar="Z"
-        tchar="X"
         call copy(rcrd,ym1,n)
-        call copy(scrd,zm1,n)
-        call copy(tcrd,xm1,n)
+        if(if3d)then 
+          schar="Z"
+          tchar="X"
+          call copy(scrd,zm1,n)
+          call copy(tcrd,xm1,n)
+        else
+          schar="X"
+          call copy(scrd,xm1,n)
+        endif
       elseif(rchar.eq.'z'.or.rchar.eq.'Z')then
         norm(3)=1.0
         schar="X"
@@ -112,7 +122,7 @@
       do i=1,npts
         ipoint=lpts(i)
         lscrd(i)=scrd(ipoint)
-        ltcrd(i)=tcrd(ipoint)
+        if(if3d) ltcrd(i)=tcrd(ipoint)
         vel=vx(ipoint,1,1,1)*norm(1)+vy(ipoint,1,1,1)*norm(2)
         if(if3d) vel=vel+vz(ipoint,1,1,1)*norm(3)
         lvel(i) =vel
@@ -134,13 +144,14 @@
       call MPI_Gather(npts,1,MPI_INTEGER,gpts,1,MPI_INTEGER,0
      &                                             ,MPI_COMM_WORLD,ierr)
       gpos(1)=0
-      do i=2,lp
+      do i=2,np
         gpos(i)=gpos(i-1)+gpts(i-1)
       enddo
 
       call MPI_GatherV(lscrd,npts,MPI_DOUBLE,gscrd,gpts,gpos,MPI_DOUBLE
      &                                           ,0,MPI_COMM_WORLD,ierr)
-      call MPI_GatherV(ltcrd,npts,MPI_DOUBLE,gtcrd,gpts,gpos,MPI_DOUBLE
+      if(if3d)
+     &call MPI_GatherV(ltcrd,npts,MPI_DOUBLE,gtcrd,gpts,gpos,MPI_DOUBLE
      &                                           ,0,MPI_COMM_WORLD,ierr)
       call MPI_GatherV(lvel ,npts,MPI_DOUBLE,gvel ,gpts,gpos,MPI_DOUBLE
      &                                           ,0,MPI_COMM_WORLD,ierr)
@@ -155,12 +166,21 @@
       if(nid.eq.0) then
         write(fname,'(a,i3,a)')"outflow.dat"
         open(unit=10,file=fname,status='unknown',form='formatted')
-        write(10,'(i6,a14,21a20)')npts,schar,tchar,"velocity"
+        if(if3d) then
+          write(10,'(i6,a14,21a20)')npts,schar,tchar,"velocity"
      &                                            ,(tname(i),i=1,npsout)
-        do i=1,npts 
+          do i=1,npts 
             write(10,'(23(ES20.12))') gscrd(i),gtcrd(i),gvel(i)
      &                                             ,(gt(i,j),j=1,npsout)
-        enddo
+          enddo
+        else
+          write(10,'(i6,a14,21a20)')npts,schar,"velocity"
+     &                                            ,(tname(i),i=1,npsout)
+          do i=1,npts 
+            write(10,'(23(ES20.12))') gscrd(i),gvel(i)
+     &                                             ,(gt(i,j),j=1,npsout)
+          enddo
+        endif
         close(10)
         write(*,'(5x,i6,1x,a,a)')
      &                     npts,"GLL points written to file ",fname
