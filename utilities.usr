@@ -1,5 +1,5 @@
 c-----------------------------------------------------------------------
-      real function planar_ave(phi,norm,pt,eps)
+      real function planar_ave_m1(phi,norm,pt,eps)
       implicit none
 C
 C     Compute area average of phi() on the
@@ -36,7 +36,49 @@ C
         w1=w1+phi(i)*bm1(i,1,1,1)*del
         w2=w2+bm1(i,1,1,1)*del
       enddo
-      planar_ave = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
+      planar_ave_m1 = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
+
+      return
+      end
+C-----------------------------------------------------------------------
+      real function planar_ave_m2(phi,norm,pt,eps)
+      implicit none
+C
+C     Compute area average of phi() on the
+C     plane defined by normal 'norm' and point 'pt'
+C
+      include 'SIZE'
+      include 'TOTAL'
+
+      real phi(1),norm(3),pt(3),eps
+      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,glsum
+
+      integer i,j,k,n
+
+      n=lx2*ly2*lz2*nelv
+
+      aa=norm(1)
+      bb=norm(2) 
+      cc=0.0
+      if(if3d) cc=norm(3)
+      dd=-1.0*(aa*pt(1)+bb*pt(2)+cc*pt(3))
+      w1=0.0
+      w2=0.0
+      do i=1,n
+        x0=xm2(i,1,1,1)
+        y0=ym2(i,1,1,1)
+        z0=zm2(i,1,1,1)
+        r0=(aa*x0+bb*y0+cc*z0+dd)/sqrt(aa**2+bb**2+cc**2)
+        rr=min(2.0,abs(r0)*2.0/eps)
+        if(rr.gt.1.0) then
+          del = 1.0/8.0*(5.0-2.0*rr-sqrt(-7.0+12.0*rr-4.0*rr**2))
+        else 
+          del = 1.0/8.0*(3.0-2.0*rr+sqrt( 1.0+ 4.0*rr-4.0*rr**2))
+        endif
+        w1=w1+phi(i)*bm2(i,1,1,1)*del
+        w2=w2+bm2(i,1,1,1)*del
+      enddo
+      planar_ave_m2 = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
 
       return
       end
@@ -186,11 +228,20 @@ C-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      integer i,n,ntot,iglsum
+      integer i,n,ntot,iglsum,n1,n2,nt,nf
       real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi
       real glmin,glmax,glsc2,glsum
+      logical ifm2
 
-      ntot=iglsum(n,1)
+      n1=lx1*ly1*lz1*nelv
+      n2=lx2*ly2*lz2*nelv
+
+      ifm2=.false.
+      ntot=n1*nelgv/nelv
+      if(n.eq.n2) then
+        ifm2=.true.
+        ntot=n2*nelgv/nelv
+      endif
 
       rmsphi=0.0
       dphi=0.0
@@ -200,14 +251,19 @@ C-----------------------------------------------------------------------
           rmsphi=rmsphi+(phip(i)-phi(i))**2
         enddo
         rmsphi=glsum(rmsphi,1)
-        rmsphi=sqrt(rmsphi/DBLE(ntot))/dt
+        rmsphi=sqrt(rmsphi/real(ntot))/dt
       endif
       dphi=glmax(dphi,1)
       dphi=dphi/dt
 
       phimin=glmin(phi,n)
       phimax=glmax(phi,n)
-      phiave=glsc2(phi,bm1,n)/volvm1
+
+      if(ifm2) then
+        phiave=glsc2(phi,bm2,nf)/volvm2
+      else
+        phiave=glsc2(phi,bm1,nf)/volvm1 
+      endif
 
       return
       end
@@ -805,15 +861,15 @@ C     Primitive Variables
       real dux,duy,duz,dpr,dth(ldimt)
       character*15 tname
 
-      n1=nx1*ny1*nz1*nelv
-      n2=nx2*ny2*nz2*nelv
-      nt=nx1*ny1*nz1*nelt
+      n1=lx1*ly1*lz1*nelv
+      n2=lx2*ly2*lz2*nelv
+      nt=lx1*ly1*lz1*nelt
 
       if(ifflow) then
-        call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
-        call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
-       if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
-        call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
+        call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,1)
+        call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,1)
+       if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,1)
+        call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,2)
       endif
       if(ifheat) then
         do i=1,npscal+1
@@ -983,11 +1039,12 @@ c-----------------------------------------------------------------------
        character     inbase(1),fbas1(124)
        character*124 fbase
        character*8   ftail
-       integer lbase,navg,n,i,j
+       integer lbase,navg,n,n2,i,j
 
        equivalence (fbas1,fbase)
  
        n=nx1*ny1*nz1*nelv
+       n2=nx2*ny2*nz2*nelv
 
        call blank(fbase,124)
        do i=1,lbase
@@ -999,7 +1056,7 @@ c-----------------------------------------------------------------------
          call rzero(uavg,n)
          call rzero(vavg,n)
          call rzero(wavg,n)
-         call rzero(pavg,n)
+         call rzero(pavg,n2)
          do j=1,ldimt
            call rzero(tavg(1,1,1,1,j),n)
          enddo
@@ -1020,7 +1077,7 @@ c-----------------------------------------------------------------------
            call add2s2(uavg,vx,time,n)
            call add2s2(vavg,vy,time,n)
            call add2s2(wavg,vz,time,n)
-           call add2s2(pavg,pr,time,n)
+           call add2s2(pavg,pr,time,n2)
            do j=1,ldimt
              call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
            enddo
@@ -1029,7 +1086,7 @@ c-----------------------------------------------------------------------
          call cmult(uavg,1.0/atime,n)
          call cmult(vavg,1.0/atime,n)
          call cmult(wavg,1.0/atime,n)
-         call cmult(pavg,1.0/atime,n)
+         call cmult(pavg,1.0/atime,n2)
          do j=1,ldimt
            call cmult(tavg(1,1,1,1,j),1.0/atime,n)
          enddo
@@ -1037,7 +1094,7 @@ c-----------------------------------------------------------------------
          call copy (vx,uavg,n)
          call copy (vy,vavg,n)
          call copy (vz,wavg,n)
-         call copy (pr,pavg,n)
+         call copy (pr,pavg,n2)
          do j=1,ldimt
            call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
          enddo
