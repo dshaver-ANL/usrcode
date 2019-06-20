@@ -231,7 +231,7 @@ C-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      integer i,n,ntot,iglsum,n1,n2,nt,nf
+      integer i,n,ntot,iglsum,n1,n2,nt
       real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi
       real glmin,glmax,glsc2,glsum
       logical ifm2
@@ -263,9 +263,9 @@ C-----------------------------------------------------------------------
       phimax=glmax(phi,n)
 
       if(ifm2) then
-        phiave=glsc2(phi,bm2,nf)/volvm2
+        phiave=glsc2(phi,bm2,n2)/volvm2
       else
-        phiave=glsc2(phi,bm1,nf)/volvm1 
+        phiave=glsc2(phi,bm1,n1)/volvm1 
       endif
 
       return
@@ -869,10 +869,10 @@ C     Primitive Variables
       nt=lx1*ly1*lz1*nelt
 
       if(ifflow) then
-        call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,1)
-        call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,1)
-       if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,1)
-        call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,2)
+        call get_limits(vx,uxmin,uxmax,uxave,dux,vxlag,rmsux,n1)
+        call get_limits(vy,uymin,uymax,uyave,duy,vylag,rmsuy,n1)
+       if(if3d) call get_limits(vz,uzmin,uzmax,uzave,duz,vzlag,rmsuz,n1)
+        call get_limits(pr,prmin,prmax,prave,dpr,prlag,rmspr,n2)
       endif
       if(ifheat) then
         do i=1,npscal+1
