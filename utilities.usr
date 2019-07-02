@@ -116,7 +116,7 @@ C-----------------------------------------------------------------------
 
       do ifld=1,nfield
         n=nelv
-        if(iftmsh(ifld+1)) n=nelt
+        if(iftmsh(ifld)) n=nelt
         do ielem=1,n
         do iside=1,2*ldim
           if(cbc(iside,ielem,ifld).eq.'W  ')then
@@ -240,10 +240,10 @@ C-----------------------------------------------------------------------
       n2=lx2*ly2*lz2*nelv
 
       ifm2=.false.
-      ntot=n1*nelgv/nelv
-      if(n.eq.n2) then
+      ntot=lx1*ly1*lz1*nelgv
+      if(n.ne.n1) then
         ifm2=.true.
-        ntot=n2*nelgv/nelv
+        ntot=lx2*ly2*lz2*nelgv
       endif
 
       rmsphi=0.0
