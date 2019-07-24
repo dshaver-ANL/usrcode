@@ -181,7 +181,7 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      subroutine get_limits(phi,phimin,phimax,phiave,dphi,phip,rmsphi)
+      subroutine get_limits(phi,phimin,phimax,phiave,dphi,phip,rmsphi,n)
       include 'SIZE'
       include 'TOTAL'
 
@@ -191,21 +191,34 @@ C-----------------------------------------------------------------------
       real phi(1),phip(1),phimin,phimax,phiave,dphi,rmsphi
       integer i,n,ntot
 
-      n=nx1*ny1*nz1*nelv
-      ntot=iglsum(n,1)
-
       rmsphi=0.0
       dphi=0.0
       if(istep.ge.1) then
         do i=1,n
           dphi=max(dphi,abs(phip(i)-phi(i)))
-          rmsphi=rmsphi+(phip(i)-phi(i))**2
+          rmsphi=rmsphi+bm1(i,1,1,1)*(phip(i)-phi(i))**2
         enddo
-        rmsphi=glsum(rmsphi,1)
-        rmsphi=sqrt(rmsphi/DBLE(ntot))/dt
+        rmsphi=glsum(rmsphi,1)/volvm1
+        rmsphi=sqrt(rmsphi)/dt
       endif
       dphi=glmax(dphi,1)
       dphi=dphi/dt
+
+      phimin=glmin(phi,n)
+      phimax=glmax(phi,n)
+      phiave=glsc2(phi,bm1,n)/volvm1
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine get_limits_nodt(phi,phimin,phimax,phiave,n)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer n
+      real phi(1),phimin,phimax,phiave
+      real glmin,glmax,glsc2
 
       phimin=glmin(phi,n)
       phimax=glmax(phi,n)
