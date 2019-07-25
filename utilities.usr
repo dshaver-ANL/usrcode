@@ -95,7 +95,7 @@ C-----------------------------------------------------------------------
       integer inscnt(ldimt1),pcnt(ldimt1),othcnt(ldimt1)
       integer vcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
       integer mtrcnt(ldimt1),prcnt(ldimt1),intcnt(ldimt1)
-      integer vreacnt(ldimt1),treacnt(ldimt1)
+      integer vreacnt(ldimt1),treacnt(ldimt1),convcnt(ldimt1)
 
       call izero(wcnt,ldimt1)
       call izero(trcnt,ldimt1)
@@ -111,6 +111,8 @@ C-----------------------------------------------------------------------
       call izero(intcnt,ldimt1)
       call izero(fcnt,ldimt1)
       call izero(pcnt,ldimt1)
+      call izero(prcnt,ldimt1)
+      call izero(convcnt,ldimt1)
       call izero(othcnt,ldimt1)
       call izero(ukncnt,ldimt1)
 
@@ -141,6 +143,8 @@ C-----------------------------------------------------------------------
             pcnt(ifld)=pcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'f  ')then 
             fcnt(ifld)=fcnt(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'c  ')then 
+            convcnt(ifld)=convcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'I  ')then
             inscnt(ifld)=inscnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'SYM')then
@@ -172,6 +176,7 @@ C-----------------------------------------------------------------------
         prcnt(ifld)=iglsum(prcnt(ifld),1)
         pcnt(ifld)=iglsum(pcnt(ifld),1)
         fcnt(ifld)=iglsum(fcnt(ifld),1)
+        convcnt(ifld)=iglsum(convcnt(ifld),1)
         inscnt(ifld)=iglsum(inscnt(ifld),1)
         symcnt(ifld)=iglsum(symcnt(ifld),1)
         axicnt(ifld)=iglsum(axicnt(ifld),1)
@@ -197,6 +202,7 @@ C-----------------------------------------------------------------------
      &                                                   treacnt(ifld)
           if(pcnt(ifld).gt.0)write(*,256)'Periodic',pcnt(ifld)
           if(fcnt(ifld).gt.0)write(*,256)'Flux',fcnt(ifld)
+          if(convcnt(ifld).gt.0)write(*,256)'Convection',convcnt(ifld)
           if(ocnt(ifld).gt.0)write(*,256)'Outlet',ocnt(ifld)
           if(prcnt(ifld).gt.0)write(*,256)'Pressure',prcnt(ifld)
           if(inscnt(ifld).gt.0)write(*,256)'Insulated',inscnt(ifld)
@@ -212,7 +218,7 @@ C-----------------------------------------------------------------------
 
  254  format(5x,a,i2,a)
  255  format(2x,a)
- 256  format(2x,a16,1x,i9)
+ 256  format(2x,a16,1x,i12)
  257  format(2x,'Unknown boundary of type: "',a,'" ',i9)
 
       return
