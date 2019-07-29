@@ -1279,6 +1279,7 @@ c-----------------------------------------------------------------------
         if(tfin.lt.timenow) then
           lastep=1
           if(nio.eq.0) write(6,*)"at wall time limit, last time step..."
+          call outfld('  ')
         endif
       endif
 
