@@ -1263,3 +1263,29 @@ c-----------------------------------------------------------------------
  
       return
       end
+c-----------------------------------------------------------------------
+      subroutine walltime(tfin)
+      implicit none 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'CTIMER'
+
+      real time0,timenow,tfin
+      save time0
+      data time0 /0.0/
+
+      if(istep.eq.0) then
+        time0=dnekclock()
+        return
+      elseif(istep.gt.0) then
+        timenow=dnekclock()-time0
+        if(tfin.lt.timenow) then
+          lastep=1
+          if(nio.eq.0) write(6,*)"at wall time limit, last time step..."
+        endif
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+        
