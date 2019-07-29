@@ -1263,6 +1263,10 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
       subroutine walltime(tfin)
       implicit none 
+C
+C     ends the run and dumps a restart file if the wall time is greater 
+C     than tfin (in seconds)
+C
       include 'SIZE'
       include 'TOTAL'
       include 'CTIMER'
@@ -1277,8 +1281,8 @@ c-----------------------------------------------------------------------
       elseif(istep.gt.0) then
         timenow=dnekclock()-time0
         if(tfin.lt.timenow) then
-          lastep=1
           if(nio.eq.0) write(6,*)"at wall time limit, last time step..."
+          lastep=1
           call outfld('  ')
         endif
       endif
