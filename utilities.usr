@@ -678,7 +678,8 @@ C     NOTE: min value should work if domain has internal corners
 C
 
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
-      integer ipt,wpt,estrd,isd,jsd
+      integer lxyz,ipt,wpt,estrd,isd,jsd
+      parameter(lxyz=lx1*ly1*lz1)
       real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1*ly1*lz1,3,3),wd(1)
       real tau(3),norm(3),vsca,tauw,utau,rho,mu
@@ -736,10 +737,13 @@ C     first build the mask  (this mask ignores some points which maybe important
           if(cbc(isd,e,1).eq.'W  ')then
             estrd=(e-1)*nx1*ny1*nz1
             if(ifgrad)then
-              call gradm11(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),vx,e)
-              call gradm11(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),vy,e)
+              call gradm11(gradu(1:lxyz,1,1),gradu(1:lxyz,1,2),
+     &                     gradu(1:lxyz,1,3),vx,e)
+              call gradm11(gradu(1:lxyz,2,1),gradu(1:lxyz,2,2),
+     &                     gradu(1:lxyz,2,3),vy,e)
               if(if3d)
-     &         call gradm11(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),vz,e)
+     &          call gradm11(gradu(1:lxyz,3,1),gradu(1:lxyz,3,2),
+     &                       gradu(1:lxyz,3,3),vz,e)
               ifgrad=.false.
             endif
             call backpts(i0,i1,j0,j1,k0,k1,isd)
@@ -770,13 +774,16 @@ C     first build the mask  (this mask ignores some points which maybe important
                 mu=vdiff(iw,jw,kw,e,1)
                 rho=vtrans(iw,jw,kw,e,1)
 
-                do i2=1,ldim
-                tau(i2)=0.0
-                  do j2=1,ldim
-                    tau(i2)=tau(i2)+
-     &                   mu*(gradu(wpt,i2,j2)+gradu(wpt,j2,i2))*norm(j2)
-                  enddo
-                enddo
+            tau(1:3)=0.0
+            tau(1)=mu*(gradu(wpt,1,1)+gradu(wpt,1,1))*norm(1)+
+     &             mu*(gradu(wpt,1,2)+gradu(wpt,2,1))*norm(2)+
+     &             mu*(gradu(wpt,1,3)+gradu(wpt,3,1))*norm(3)
+            tau(2)=mu*(gradu(wpt,2,1)+gradu(wpt,1,2))*norm(1)+
+     &             mu*(gradu(wpt,2,2)+gradu(wpt,2,2))*norm(2)+
+     &             mu*(gradu(wpt,2,3)+gradu(wpt,3,2))*norm(3)
+            tau(3)=mu*(gradu(wpt,3,1)+gradu(wpt,1,3))*norm(1)+
+     &             mu*(gradu(wpt,3,2)+gradu(wpt,2,3))*norm(2)+
+     &             mu*(gradu(wpt,3,3)+gradu(wpt,3,3))*norm(3)
 
                 vsca=0.0
                 do i2=1,ldim
