@@ -1008,6 +1008,41 @@ c-----------------------------------------------------------------------
        return
        end
 c-----------------------------------------------------------------------
+       real function bc_flux_average(phi,bca,ifld)
+       implicit none
+       include 'SIZE'
+       include 'TOTAL'
+
+       character*3 bca
+       integer ifld
+       real phi(lx1*ly1*lz1,lelv)
+
+       integer f,e,lxyz
+       parameter (lxyz=lx1*ly1*lz1)
+       real phibc,AA,dphi,dAA,w(lxyz)
+       real glsum
+
+       phibc=0.0
+       AA=0.0
+ 
+       do e=1,nelt
+         do f=1,ndim*2
+           if(cbc(f,e,ifld).eq.bca) then
+             call surface_flux2(dphi,phi,e,f)
+             call surface_flux(dAA,vx,vy,vz,e,f,w)
+             phibc=phibc+dphi
+             AA=AA+dAA
+           endif
+         enddo
+       enddo
+       AA=glsum(AA,1)
+       phibc=glsum(phibc,1)/AA
+
+       bc_flux_average = phibc
+
+       return
+       end
+c-----------------------------------------------------------------------
        real function bc_max(phi,bca,ifld)
        implicit none
        include 'SIZE'
@@ -1274,7 +1309,7 @@ C
       include 'TOTAL'
       include 'CTIMER'
 
-      real time0,timenow,tfin
+      real time0,timenow,tfin,glmax
       save time0
       data time0 /0.0/
 
@@ -1282,15 +1317,122 @@ C
         time0=dnekclock()
         return
       elseif(istep.gt.0) then
-        timenow=dnekclock()-time0
-        if(tfin.lt.timenow) then
-          if(nio.eq.0) write(6,*)"at wall time limit, last time step..."
-          lastep=1
-          call outfld('  ')
+        if(nid.eq.0) then
+          timenow=dnekclock()-time0
+          if(tfin.lt.timenow) then
+            write(6,*)"at wall time limit, last time step..."
+            lastep=1
+          endif
         endif
+        call bcast(lastep,isize)
+        if(lastep.eq.1) call outfld('  ')
       endif
 
       return
       end
 c-----------------------------------------------------------------------
-        
+      subroutine surface_flux2(dq,q,e,f)
+
+      include 'SIZE'
+      include 'TOTAL'
+      parameter (l=lx1*ly1*lz1)
+
+      real q(l,1),w(lx1,ly1,lz1)
+      integer f
+
+      call           faccl4  (w,vx(1,1,1,e),q(1,e),unx(1,1,f,e),f)
+      call           faddcl4 (w,vy(1,1,1,e),q(1,e),uny(1,1,f,e),f)
+      if (if3d) call faddcl4 (w,vz(1,1,1,e),q(1,e),unz(1,1,f,e),f)
+
+      call dsset(lx1,ly1,lz1)
+      iface  = eface1(f)
+      js1    = skpdat(1,iface)
+      jf1    = skpdat(2,iface)
+      jskip1 = skpdat(3,iface)
+      js2    = skpdat(4,iface)
+      jf2    = skpdat(5,iface)
+      jskip2 = skpdat(6,iface)
+
+      dq = 0
+      i  = 0
+      do 100 j2=js2,jf2,jskip2
+      do 100 j1=js1,jf1,jskip1
+         i = i+1
+         dq    = dq + area(i,1,f,e)*w(j1,j2,1)
+  100 continue
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine faccl4(a,b,c,d,iface1)
+C
+C     Collocate B with A on the surface IFACE1 of element IE.
+C
+C         A, B, and C are (NX,NY,NZ) data structures
+C         D is a (NX,NY,IFACE) data structure
+C         IFACE1 is in the preprocessor notation
+C         IFACE  is the dssum notation.
+C
+      include 'SIZE'
+      include 'TOPOL'
+      DIMENSION A(LX1,LY1,LZ1),B(LX1,LY1,LZ1),C(LX1,LY1,LZ1),D(LX1,LY1)
+C
+C     Set up counters
+C
+      CALL DSSET(lx1,ly1,lz1)
+      IFACE  = EFACE1(IFACE1)
+      JS1    = SKPDAT(1,IFACE)
+      JF1    = SKPDAT(2,IFACE)
+      JSKIP1 = SKPDAT(3,IFACE)
+      JS2    = SKPDAT(4,IFACE)
+      JF2    = SKPDAT(5,IFACE)
+      JSKIP2 = SKPDAT(6,IFACE)
+C
+      I = 0
+      DO 100 J2=JS2,JF2,JSKIP2
+      DO 100 J1=JS1,JF1,JSKIP1
+         I = I+1
+         A(J1,J2,1) = B(J1,J2,1)*C(J1,J2,1)*D(I,1)
+  100 CONTINUE
+C
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine faddcl4(a,b,c,d,iface1)
+C
+C     Collocate B with C and add to A on the surface IFACE1 of element
+C     IE.
+C
+C         A is a (NX,NY,NZ) data structure
+C         B is a (NX,NY,NZ) data structure
+C         C is a (NX,NY,NZ) data structure
+C         D is a (NX,NY,IFACE) data structure
+C         IFACE1 is in the preprocessor notation
+C         IFACE  is the dssum notation.
+C         29 Jan 1990 18:00 PST   PFF
+C
+      include 'SIZE'
+      include 'TOPOL'
+      DIMENSION A(LX1,LY1,LZ1),B(LX1,LY1,LZ1),C(LX1,LY1,LZ1),D(LX1,LY1)
+C
+C     Set up counters
+C
+      CALL DSSET(lx1,ly1,lz1)
+      IFACE  = EFACE1(IFACE1)
+      JS1    = SKPDAT(1,IFACE)
+      JF1    = SKPDAT(2,IFACE)
+      JSKIP1 = SKPDAT(3,IFACE)
+      JS2    = SKPDAT(4,IFACE)
+      JF2    = SKPDAT(5,IFACE)
+      JSKIP2 = SKPDAT(6,IFACE)
+C
+      I = 0
+      DO 100 J2=JS2,JF2,JSKIP2
+      DO 100 J1=JS1,JF1,JSKIP1
+         I = I+1
+         A(J1,J2,1) = A(J1,J2,1) + B(J1,J2,1)*C(J1,J2,1)*D(I,1)
+  100 CONTINUE
+C
+      return
+      end
+
