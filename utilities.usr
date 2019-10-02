@@ -1336,7 +1336,7 @@ c-----------------------------------------------------------------------
       parameter (l=lx1*ly1*lz1)
 
       real q(l,1),w(lx1,ly1,lz1)
-      integer f
+      integer e,f
 
       call           faccl4  (w,vx(1,1,1,e),q(1,e),unx(1,1,f,e),f)
       call           faddcl4 (w,vy(1,1,1,e),q(1,e),uny(1,1,f,e),f)
