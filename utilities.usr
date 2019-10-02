@@ -927,7 +927,7 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
  
-      integer ix,iy,iz,ie,n,e,f
+      integer ix,iy,iz,ie,n,e,f,p54
 
       logical ifdid
 
@@ -937,11 +937,12 @@ c-----------------------------------------------------------------------
       data ifdid /.false./
       data time0 /-1.0/
 
-      save ifdid,time0,vel_avg,f_gm
+      save ifdid,time0,vel_avg,f_gm,p54
 
       n=nx1*ny1*nz1*nelv
 
       if(.not.ifdid) then
+        p54=nint(abs(param(54))) !make sure this is an int, for my own sanity
         ifdid = .true.
         tarea = 0.0
         do e=1,nelv
@@ -958,19 +959,16 @@ c-----------------------------------------------------------------------
 
       if(time.ne.time0) then
         time0=time
-        if(abs(param(54)).eq.1.0) vel_avg=glsc2(vx,bm1,n)/volvm1
-        if(abs(param(54)).eq.2.0) vel_avg=glsc2(vy,bm1,n)/volvm1
-        if(abs(param(54)).eq.3.0) vel_avg=glsc2(vz,bm1,n)/volvm1
-        tcorr = -1.0*glsc2(t,bm1,n)/volvm1
+        if(p54.eq.1) vel_avg=glsc2(vx,bm1,n)/volvm1 !this might be wrong for variable density
+        if(p54.eq.2) vel_avg=glsc2(vy,bm1,n)/volvm1
+        if(p54.eq.3) vel_avg=glsc2(vz,bm1,n)/volvm1
+        tcorr = -1.0*glsc2(t,bm1,n)/volvm1 !should probably be weighted by u*rho*cp
         call cadd (t,tcorr,n)
       endif
 
-      if(abs(param(54)).eq.1.0) 
-     &                  q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
-      if(abs(param(54)).eq.2.0)
-     &                  q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
-      if(abs(param(54)).eq.3.0)
-     &                  q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
+      if(p54.eq.1) q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
+      if(p54.eq.2) q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
+      if(p54.eq.3) q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
 
       return
       end
