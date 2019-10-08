@@ -937,12 +937,12 @@ c-----------------------------------------------------------------------
       data ifdid /.false./
       data time0 /-1.0/
 
-      save ifdid,time0,vel_avg,f_gm,p54
+      save ifdid,time0,vel_avg,f_gm,dir
 
       n=nx1*ny1*nz1*nelv
 
       if(.not.ifdid) then
-        p54=nint(abs(param(54))) !make sure this is an int, for my own sanity
+        dir=nint(abs(param(54))) !make sure this is an int, for my own sanity
         ifdid = .true.
         tarea = 0.0
         do e=1,nelv
@@ -954,7 +954,7 @@ c-----------------------------------------------------------------------
           enddo
         enddo
         tarea=glsum(tarea,1)
-        f_gm=abs(tarea/volvm1)
+        f_gm=abs(tarea/volvm1) !probably wrong for CHT
       endif
 
       e=lglel(ie) !do nothing in solid region
@@ -963,7 +963,6 @@ c-----------------------------------------------------------------------
         return
       endif
 
-      dir=nint(abs(param(54)))
       if(time.ne.time0) then
         time0=time
         if(dir.eq.1) then
