@@ -937,11 +937,12 @@ c-----------------------------------------------------------------------
       data ifdid /.false./
       data time0 /-1.0/
 
-      save ifdid,time0,vel_avg,f_gm
+      save ifdid,time0,vel_avg,f_gm,p54
 
       n=nx1*ny1*nz1*nelv
 
       if(.not.ifdid) then
+        p54=nint(abs(param(54))) !make sure this is an int, for my own sanity
         ifdid = .true.
         tarea = 0.0
         do e=1,nelv
