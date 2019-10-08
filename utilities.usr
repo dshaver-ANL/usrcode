@@ -927,12 +927,12 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
  
-      integer ix,iy,iz,ie,n,e,f
+      integer ix,iy,iz,ie,n,e,f,dir
 
       logical ifdid
 
       real dummy,sarea,tarea,time0,tcorr
-      real f_gm,vel_avg,glsum,glsc2
+      real f_gm,vel_avg,glsum,glsc2,glsc3
 
       data ifdid /.false./
       data time0 /-1.0/
@@ -956,21 +956,81 @@ c-----------------------------------------------------------------------
         f_gm=abs(tarea/volvm1)
       endif
 
+      e=lglel(ie) !do nothing in solid region
+      if(e.gt.nelgv) then
+        q_vol_periodic = 0.0
+        return
+      endif
+
+      dir=nint(abs(param(54)))
       if(time.ne.time0) then
         time0=time
-        if(abs(param(54)).eq.1.0) vel_avg=glsc2(vx,bm1,n)/volvm1
-        if(abs(param(54)).eq.2.0) vel_avg=glsc2(vy,bm1,n)/volvm1
-        if(abs(param(54)).eq.3.0) vel_avg=glsc2(vz,bm1,n)/volvm1
-        tcorr = -1.0*glsc2(t,bm1,n)/volvm1
+        if(dir.eq.1) then
+          vel_avg=glsc2(vx,bm1,n)/volvm1
+          tcorr = -1.0*glsc3(t,vx,bm1,n)/(vel_avg*volvm1)
+        elseif(dir.eq.2) then
+          vel_avg=glsc2(vy,bm1,n)/volvm1
+          tcorr = -1.0*glsc3(t,vy,bm1,n)/(vel_avg*volvm1)
+        elseif(dir.eq.3) then
+          vel_avg=glsc2(vz,bm1,n)/volvm1
+          tcorr = -1.0*glsc3(t,vz,bm1,n)/(vel_avg*volvm1)
+        endif
         call cadd (t,tcorr,n)
       endif
 
-      if(abs(param(54)).eq.1.0) 
-     &                  q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
-      if(abs(param(54)).eq.2.0)
-     &                  q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
-      if(abs(param(54)).eq.3.0)
-     &                  q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.1) q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.2) q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.3) q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine print_Nusselt
+      include 'SIZE'
+      include 'TOTAL'
+
+      logical ifdo
+      save ifdo
+      data ifdo /.true./
+
+      if(.not.ifdo) return
+
+      if(abs(param(54)).lt.0.1) then
+        ifdo=.false.
+        if(nio.eq.0) then
+          write(*,'(a)') "******************************"
+          write(*,'(a)')
+     &       "print_Nusselt routine only compatible with forced flow"
+          write(*,'(a)') "******************************"
+        endif
+        return
+      endif
+
+      n=nx1*ny1*nz1*nelv
+
+      tarea=0.0
+      twall=0.0
+      do ie=1,nelt
+        do ifa=1,2*ndim
+          if(cbc(ifa,ie,2).eq.'f  ') then
+            call surface_int(swall,sarea,t,ie,ifa)
+            twall=twall+swall
+            tarea=tarea+sarea
+          endif
+        enddo
+      enddo
+      tarea=glsum(tarea,1)
+      twall=glsum(twall,1)/tarea
+
+      if(abs(param(54)).eq.1.0) tbulk=glsc3(t,vx,bm1,n)/glsc2(vx,bm1,n)
+      if(abs(param(54)).eq.2.0) tbulk=glsc3(t,vy,bm1,n)/glsc2(vy,bm1,n)
+      if(abs(param(54)).eq.3.0) tbulk=glsc3(t,vz,bm1,n)/glsc2(vz,bm1,n)
+
+      rNus=1.0/((twall-tbulk)*cpfld(2,1))
+      if(nio.eq.0) then
+        write(*,'(a16,2es15.7)') "time, Nusselt",time,rNus
+        write(*,*)
+      endif
 
       return
       end
@@ -1146,56 +1206,6 @@ c-----------------------------------------------------------------------
  
        return
        end
-c-----------------------------------------------------------------------
-       subroutine print_Nusselt
-       include 'SIZE'
-       include 'TOTAL'
-
-       logical ifdo
-       save ifdo
-       data ifdo /.true./
-
-       if(.not.ifdo) return
-
-       if(abs(param(54)).lt.0.1) then
-         ifdo=.false.
-         if(nio.eq.0) then
-           write(*,'(a)') "******************************"
-           write(*,'(a)')
-     &       "print_Nusselt routine only compatible with forced flow"
-           write(*,'(a)') "******************************"
-         endif
-         return
-       endif
-
-       n=nx1*ny1*nz1*nelv
-
-       tarea=0.0
-       twall=0.0
-       do ie=1,nelt
-         do ifa=1,2*ndim
-           if(cbc(ifa,ie,2).eq.'f  ') then
-             call surface_int(swall,sarea,t,ie,ifa)
-             twall=twall+swall
-             tarea=tarea+sarea
-           endif
-         enddo
-       enddo
-       tarea=glsum(tarea,1)
-       twall=glsum(twall,1)/tarea
-
-      if(abs(param(54)).eq.1.0) tbulk=glsc3(t,vx,bm1,n)/glsc2(vx,bm1,n)
-      if(abs(param(54)).eq.2.0) tbulk=glsc3(t,vy,bm1,n)/glsc2(vy,bm1,n)
-      if(abs(param(54)).eq.3.0) tbulk=glsc3(t,vz,bm1,n)/glsc2(vz,bm1,n)
-
-      rNus=1.0/((twall-tbulk)*cpfld(2,1))
-      if(nio.eq.0) then
-        write(*,'(a16,2es15.7)') "time, Nusselt",time,rNus
-        write(*,*)
-      endif
-
-      return
-      end
 c-----------------------------------------------------------------------
       subroutine get_face_m1centroid(xx,yy,zz,ie,iface)
       implicit none
