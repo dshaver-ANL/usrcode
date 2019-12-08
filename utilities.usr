@@ -669,20 +669,19 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      subroutine y_p_limits(wd,ypmin,ypmax,ypave,utmin,utmax,utave)
+      subroutine y_p_limits(wd)
       implicit none
       include 'SIZE'
       include 'TOTAL'
 C
 C     NOTE: min value should work if domain has internal corners
 C
-
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
       integer ipt,wpt,estrd,isd,jsd
       real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1*ly1*lz1,3,3),wd(1)
-      real tau(3),norm(3),vsca,tauw,utau,rho,mu
-      real ypmin,ypmax,yp,ypave,vol,utmin,utmax,utave
+      real tau(3),norm(3),vsca,tauw,utau,rho,mu,k,cp,Pr
+      real ypmin,ypmax,yp,ypave,vol,utmin,utmax,utave,tpmin,tpmax,tpave
       real glmin,glmax,glsum
       logical ifgrad, ifdid
 
@@ -695,6 +694,9 @@ C
       utmin=1.0d30
       utmax=-1.0d30
       utave=0.0
+      tpmin=1.0e30
+      tpmax=-1.0e30
+      tpave=0.0
       vol=0.0
 
 C     first build the mask  (this mask ignores some points which maybe important... 
@@ -769,6 +771,12 @@ C     first build the mask  (this mask ignores some points which maybe important
 
                 mu=vdiff(iw,jw,kw,e,1)
                 rho=vtrans(iw,jw,kw,e,1)
+                Pr=1.0
+                if(idpss(1).ge.0) then
+                  k=vdiff(iw,jw,kw,e,2)
+                  cp=vtrans(iw,jw,kw,e,2)/rho
+                  Pr=cp*mu/k
+                endif
 
                 do i2=1,ldim
                 tau(i2)=0.0
@@ -797,6 +805,10 @@ C     first build the mask  (this mask ignores some points which maybe important
                 utmax=max(utau,utmax)
                 utave=utave+utau*bm1(i,j,k,e)
                 vol=vol+bm1(i,j,k,e)
+                tp=yp*Pr
+                tpmin=min(tpmin,tp)
+                tpmax=max(tpmax,tp)
+                tpave=tpave+tp*bm1(i,j,k,e)
               endif
             enddo
             enddo
@@ -811,9 +823,22 @@ C     first build the mask  (this mask ignores some points which maybe important
       utmin=glmin(utmin,1)
       utmax=glmax(utmax,1)
       utave=glsum(utave,1)
+      tpmin=glmin(tpmin,1)
+      tpmax=glmax(tpmax,1)
+      tpave=glsum(tpave,1)
       vol=glsum(vol,1)
       ypave=ypave/vol
       utave=utave/vol
+      tpave=tpave/vol
+
+      if(nio.eq.0)then
+        write(*,255) 'y_p+',ypmin,ypmax,ypave
+        if(.not.if3d) write(*,255) 'u tau',utmin,utmax,utave
+        if(ifheat.and.(idpss(1).ge.0))
+     &                              write(*,255)'T_p+',tpmin,tpmax,tpave
+      endif
+
+ 255  format(a15,5es13.4)
 
       return
       end
