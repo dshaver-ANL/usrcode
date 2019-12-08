@@ -957,7 +957,7 @@ c-----------------------------------------------------------------------
       logical ifdid(ldimt)
 
       real dummy,sarea,tarea,time0(ldimt),tcorr
-      real f_gm,vel_avg,glsum,glsc2,glsc3
+      real f_gm(ldimt),vel_avg,glsum,glsc2,glsc3
 
       data ifdid /ldimt*.false./
       data time0 /ldimt*-1.0/
@@ -979,7 +979,7 @@ c-----------------------------------------------------------------------
           enddo
         enddo
         tarea=glsum(tarea,1)
-        f_gm=abs(tarea/volvm1) !probably wrong for CHT
+        f_gm(ifld-1)=abs(tarea/volvm1) !probably wrong for CHT
       endif
 
       e=lglel(ie) !do nothing in solid region
@@ -1004,9 +1004,9 @@ c-----------------------------------------------------------------------
         call cadd (t(1,1,1,1,ifld-1),tcorr,n)
       endif
 
-      if(dir.eq.1) q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
-      if(dir.eq.2) q_vol_periodic=-1.0*f_gm*vy(ix,iy,iz,ie)/vel_avg
-      if(dir.eq.3) q_vol_periodic=-1.0*f_gm*vz(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.1) q_vol_periodic=-f_gm(ifld-1)*vx(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.2) q_vol_periodic=-f_gm(ifld-1)*vy(ix,iy,iz,ie)/vel_avg
+      if(dir.eq.3) q_vol_periodic=-f_gm(ifld-1)*vz(ix,iy,iz,ie)/vel_avg
 
       return
       end
