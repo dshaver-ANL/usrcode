@@ -922,32 +922,32 @@ c     call copy(prlag,pr,n2)  no longer necessary as of commit 6616c87a0f9ecd946
       return
       end
 c-----------------------------------------------------------------------
-      real function q_vol_periodic(ix,iy,iz,ie)
+      real function q_vol_periodic(ix,iy,iz,ie,ifld)
       implicit none
       include 'SIZE'
       include 'TOTAL'
  
-      integer ix,iy,iz,ie,n,e,f,dir
+      integer ix,iy,iz,ie,ifld,n,e,f,dir
 
-      logical ifdid
+      logical ifdid(ldimt)
 
-      real dummy,sarea,tarea,time0,tcorr
+      real dummy,sarea,tarea,time0(ldimt),tcorr
       real f_gm,vel_avg,glsum,glsc2,glsc3
 
-      data ifdid /.false./
-      data time0 /-1.0/
+      data ifdid /ldimt*.false./
+      data time0 /ldimt*-1.0/
 
       save ifdid,time0,vel_avg,f_gm,dir
 
       n=nx1*ny1*nz1*nelv
 
-      if(.not.ifdid) then
+      if(.not.ifdid(ifld-1)) then
         dir=nint(abs(param(54))) !make sure this is an int, for my own sanity
-        ifdid = .true.
+        ifdid(ifld-1) = .true.
         tarea = 0.0
         do e=1,nelv
           do f=1,2*ndim
-            if(cbc(f,e,2).eq.'f  ') then
+            if(cbc(f,e,ifld).eq.'f  ') then
               call surface_int(dummy,sarea,xm1,e,f)
               tarea=tarea+sarea
             endif
@@ -963,19 +963,20 @@ c-----------------------------------------------------------------------
         return
       endif
 
-      if(time.ne.time0) then
-        time0=time
+      if(time.ne.time0(ifld-1)) then
+        time0(ifld-1)=time
         if(dir.eq.1) then
           vel_avg=glsc2(vx,bm1,n)/volvm1
-          tcorr = -1.0*glsc3(t,vx,bm1,n)/(vel_avg*volvm1)
+          tcorr = -1.0*glsc3(t(1,1,1,1,ifld-1),vx,bm1,n)
         elseif(dir.eq.2) then
           vel_avg=glsc2(vy,bm1,n)/volvm1
-          tcorr = -1.0*glsc3(t,vy,bm1,n)/(vel_avg*volvm1)
+          tcorr = -1.0*glsc3(t(1,1,1,1,ifld-1),vy,bm1,n)
         elseif(dir.eq.3) then
           vel_avg=glsc2(vz,bm1,n)/volvm1
-          tcorr = -1.0*glsc3(t,vz,bm1,n)/(vel_avg*volvm1)
+          tcorr = -1.0*glsc3(t(1,1,1,1,ifld-1),vz,bm1,n)
         endif
-        call cadd (t,tcorr,n)
+        tcorr=tcorr/(vel_avg*volvm1)
+        call cadd (t(1,1,1,1,ifld-1),tcorr,n)
       endif
 
       if(dir.eq.1) q_vol_periodic=-1.0*f_gm*vx(ix,iy,iz,ie)/vel_avg
@@ -985,7 +986,7 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine print_Nusselt
+      subroutine print_Nusselt(ifld)
       include 'SIZE'
       include 'TOTAL'
 
@@ -1012,7 +1013,7 @@ c-----------------------------------------------------------------------
       twall=0.0
       do ie=1,nelt
         do ifa=1,2*ndim
-          if(cbc(ifa,ie,2).eq.'f  ') then
+          if(cbc(ifa,ie,ifld).eq.'f  ') then
             call surface_int(swall,sarea,t,ie,ifa)
             twall=twall+swall
             tarea=tarea+sarea
@@ -1022,13 +1023,17 @@ c-----------------------------------------------------------------------
       tarea=glsum(tarea,1)
       twall=glsum(twall,1)/tarea
 
-      if(abs(param(54)).eq.1.0) tbulk=glsc3(t,vx,bm1,n)/glsc2(vx,bm1,n)
-      if(abs(param(54)).eq.2.0) tbulk=glsc3(t,vy,bm1,n)/glsc2(vy,bm1,n)
-      if(abs(param(54)).eq.3.0) tbulk=glsc3(t,vz,bm1,n)/glsc2(vz,bm1,n)
+      if(abs(param(54)).eq.1.0) 
+     &           tbulk=glsc3(t(1,1,1,1,ifld-1),vx,bm1,n)/glsc2(vx,bm1,n)
+      if(abs(param(54)).eq.2.0) 
+     &           tbulk=glsc3(t(1,1,1,1,ifld-1),vy,bm1,n)/glsc2(vy,bm1,n)
+      if(abs(param(54)).eq.3.0) 
+     &           tbulk=glsc3(t(1,1,1,1,ifld-1),vz,bm1,n)/glsc2(vz,bm1,n)
 
-      rNus=1.0/((twall-tbulk)*cpfld(2,1))
+      rNus=1.0/((twall-tbulk)*cpfld(ifld,1))
       if(nio.eq.0) then
-        write(*,'(a16,2es15.7)') "time, Nusselt",time,rNus
+        write(*,'(a24,es15.7,i3,es15.7)') 
+     &                             "time, field, Nusselt",time,ifld,rNus
         write(*,*)
       endif
 
