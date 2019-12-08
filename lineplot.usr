@@ -11,7 +11,8 @@ c-----------------------------------------------------------------------
       integer npts,lpts,iplot
 
       character*32 fname
-      character*10 afmt,rfmt
+      character*14 afmt
+      character*10 rfmt
       integer intp_h,i,j,nt,nfld
       save intp_h
       logical ifset,ifdo
@@ -59,19 +60,24 @@ c-----------------------------------------------------------------------
         call interp_setup(intp_h,0.0,0,nelt)
       endif
 
-      nfld=2
-      write(outname(1),'(a4)')"VELX"
-      write(outname(2),'(a4)')"VELY"
-      call copy(fwrk(1,1),vx,nt)
-      call copy(fwrk(1,2),vy,nt)
-      if(if3d)then
+      nfld=0
+      if(ifvo) then
+        write(outname(1),'(a4)')"VELX"
+        write(outname(2),'(a4)')"VELY"
+        call copy(fwrk(1,1),vx,nt)
+        call copy(fwrk(1,2),vy,nt)
+        nfld=2
+      endif
+      if(if3d.and.ifvo)then
         nfld=nfld+1
         write(outname(nfld),'(a4)')"VELZ"
         call copy(fwrk(1,nfld),vz,nt)
       endif
-      nfld=nfld+1
-      write(outname(nfld),'(a4)')"PRES"
-      call copy(fwrk(1,nfld),pr,nt)
+      if(ifpo) then
+        nfld=nfld+1
+        write(outname(nfld),'(a4)')"PRES"
+        call copy(fwrk(1,nfld),pr,nt)
+      endif
       if(ifheat) then
         if(ifto) then
           nfld=nfld+1
@@ -87,49 +93,51 @@ c-----------------------------------------------------------------------
         enddo
       endif
 
-      call interp_nfld(fpts,fwrk,nfld,pts(1,1),pts(1,2),pts(1,3),npts
+      if(nfld.gt.0) then
+        call interp_nfld(fpts,fwrk,nfld,pts(1,1),pts(1,2),pts(1,3),npts
      &                                  ,iwrk,rwrk,nptmax,.true.,intp_h)
 
-      call blank(fname,32)
-      if(iplot.lt.10) then
-        write(fname,'(a,i1,a)') "plot",iplot,".dat"
-      elseif(iplot.lt.100) then
-        write(fname,'(a,i2,a)') "plot",iplot,".dat"
-      else
-        write(fname,'(a,i3,a)') "plot",iplot,".dat"
-      endif
- 
-      call blank(afmt,10)
-      call blank(rfmt,10)
-      if(if3d) then
-        write(afmt,'(a1,i2,a4)')"(",nfld+3,"a16)"
-        write(rfmt,'(a1,i2,a7)')"(",nfld+3,"es16.8)"
-      else
-        write(afmt,'(a1,i2,a4)')"(",nfld+2,"a16)"
-        write(rfmt,'(a1,i2,a7)')"(",nfld+2,"es16.8)"
-      endif
-
-      if(nio.eq.0) then
-        open(unit=10,file=fname,status='unknown',form='formatted')
-        if(if3d) then
-          write(10,afmt)"X","Y","Z",(outname(i),i=1,nfld)
+        call blank(fname,32)
+        if(iplot.lt.10) then
+          write(fname,'(a,i1,a)') "plot",iplot,".dat"
+        elseif(iplot.lt.100) then
+          write(fname,'(a,i2,a)') "plot",iplot,".dat"
         else
-          write(10,afmt)"X","Y",(outname(i),i=1,nfld)
+          write(fname,'(a,i3,a)') "plot",iplot,".dat"
         endif
-        do i=1,npts
+   
+        call blank(afmt,14)
+        call blank(rfmt,10)
+        if(if3d) then
+          write(afmt,'(a1,i2,a11)')"(",nfld+3,"a16,es16.8)"
+          write(rfmt,'(a1,i2,a7)')"(",nfld+3,"es16.8)"
+        else
+          write(afmt,'(a1,i2,a11)')"(",nfld+2,"a16,es16.8)"
+          write(rfmt,'(a1,i2,a7)')"(",nfld+2,"es16.8)"
+        endif
+  
+        if(nio.eq.0) then
+          open(unit=10,file=fname,status='unknown',form='formatted')
           if(if3d) then
-            write(10,rfmt)pts(i,1),pts(i,2),pts(i,3)
-     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
+            write(10,afmt)"X","Y","Z",(outname(i),i=1,nfld),time
           else
-            write(10,rfmt)pts(i,1),pts(i,2)
-     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
+            write(10,afmt)"X","Y",(outname(i),i=1,nfld),time
           endif
-        enddo
+          do i=1,npts
+            if(if3d) then
+              write(10,rfmt)pts(i,1),pts(i,2),pts(i,3)
+     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
+            else
+              write(10,rfmt)pts(i,1),pts(i,2)
+     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
+            endif
+          enddo
+        endif
+  
+        close(10)
+  
+        iplot=iplot+1
       endif
-
-      close(10)
-
-      iplot=iplot+1
 
       return
       end
