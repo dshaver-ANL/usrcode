@@ -656,7 +656,6 @@ c-----------------------------------------------------------------------
       if(nio.eq.0) then
         write(*,'(a24,es15.7,i3,es15.7)') 
      &                             "time, field, Nusselt",time,ifld,rNus
-        write(*,*)
       endif
 
       return
@@ -691,6 +690,34 @@ c-----------------------------------------------------------------------
        phibc=glsum(phibc,1)/Abc
 
        bc_average = phibc
+
+       return
+       end
+c-----------------------------------------------------------------------
+       real function bc_area(bca,ifld)
+       implicit none
+       include 'SIZE'
+       include 'INPUT'
+
+       character*3 bca
+       integer ifld
+
+       integer f,e
+       real Abc,dA
+       real glsum
+
+       Abc=0.0
+ 
+       do 10 e=1,nelt
+       do 10 f=1,ndim*2
+         if(cbc(f,e,ifld).eq.bca) then
+           call surface_area(dA,e,f)
+           Abc=Abc+dA
+         endif
+  10   continue
+       Abc=glsum(Abc,1)
+
+       bc_area = Abc
 
        return
        end
@@ -830,6 +857,8 @@ c-----------------------------------------------------------------------
            call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
          enddo
        endif
+
+       call print_limits !print out the average data
  
        return
        end
@@ -1072,4 +1101,127 @@ C
 C
       return
       end
+c-----------------------------------------------------------------------
+      subroutine loadmesh(string)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+      include 'TSTEP'
+      include 'RESTART'
+    
+      integer l,ltrunc
+      real t_s
+      character string*(*)
+      character*132 initc_sav
 
+      l=ltrunc(string,len(string))
+      if(l.gt.130) call exitti('invalid string length$',l)
+
+      initc_sav=initc(1)
+      t_s=time
+      call blank(initc(1),132)
+      initc(1)=trim(string)//' X'
+      call restart(1)
+      initc(1)=initc_sav
+      time=t_s
+ 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine loadfld2(string)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+      include 'TSTEP'
+      include 'RESTART'
+    
+      integer l,ltrunc
+      real t_s
+      character string*(*)
+      character*132 initc_sav
+
+      l=ltrunc(string,len(string))
+      if(l.gt.132) call exitti('invalid string length$',l)
+
+      initc_sav=initc(1)
+      t_s=time
+      call blank(initc(1),132)
+      initc(1)=trim(string)
+      call restart(1)
+      initc(1)=initc_sav
+      time=t_s
+ 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine dumpmesh
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer i
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.false.
+      do i=1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      call prepost (.true.,'msh')
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine surface_area(sarea,e,f)
+
+      include 'SIZE'
+      include 'GEOM'
+      include 'PARALLEL'
+      include 'TOPOL'
+
+      integer e,f
+
+      call dsset(lx1,ly1,lz1)
+
+      iface  = eface1(f)
+      js1    = skpdat(1,iface)
+      jf1    = skpdat(2,iface)
+      jskip1 = skpdat(3,iface)
+      js2    = skpdat(4,iface)
+      jf2    = skpdat(5,iface)
+      jskip2 = skpdat(6,iface)
+
+      sarea = 0.
+      i     = 0
+
+      do 100 j2=js2,jf2,jskip2
+      do 100 j1=js1,jf1,jskip1
+         i = i+1
+         sarea = sarea+area(i,1,f,e)
+  100 continue
+
+      return
+      end
+c-----------------------------------------------------------------------
