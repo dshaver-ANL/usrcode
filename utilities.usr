@@ -551,7 +551,8 @@ C-----------------------------------------------------------------------
  
       integer ix,iy,iz,ie,ifld,n,e,f,dir
 
-      logical ifdid(ldimt)
+      logical ifdid(ldimt),ifprintNu(ldimt)
+      common /printNu/ ifprintNu
 
       real dummy,sarea,tarea,time0(ldimt),tcorr
       real f_gm(ldimt),vel_avg,glsum,glsc2,glsc3
@@ -578,6 +579,8 @@ C-----------------------------------------------------------------------
         tarea=glsum(tarea,1)
         f_gm(ifld-1)=abs(tarea/volvm1) !probably wrong for CHT
       endif
+
+      ifprintNu(ifld-1)=.true.
 
       e=lglel(ie) !do nothing in solid region
       if(e.gt.nelgv) then
@@ -608,15 +611,29 @@ C-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine print_Nusselt(ifld)
+      subroutine print_Nusselt
       include 'SIZE'
       include 'TOTAL'
 
-      logical ifdo
+      logical ifdo,ifprintNu(ldimt)
+      real rNus(ldimt)
+
+      common /printNu/ ifprintNu
+
       save ifdo
       data ifdo /.true./
 
       if(.not.ifdo) return
+      if(istep.eq.0) then
+        do i=1,ldimt
+          ifprintNu(i)=.false.
+        enddo 
+      endif
+      if(nsteps.eq.0) then
+        do i=1,ldimt
+          ifprintNu(i)=.true.
+        enddo
+      endif
 
       if(abs(param(54)).lt.0.1) then
         ifdo=.false.
@@ -631,31 +648,37 @@ c-----------------------------------------------------------------------
 
       n=nx1*ny1*nz1*nelv
 
-      tarea=0.0
-      twall=0.0
-      do ie=1,nelt
-        do ifa=1,2*ndim
-          if(cbc(ifa,ie,ifld).eq.'f  ') then
-            call surface_int(swall,sarea,t,ie,ifa)
-            twall=twall+swall
-            tarea=tarea+sarea
-          endif
-        enddo
-      enddo
-      tarea=glsum(tarea,1)
-      twall=glsum(twall,1)/tarea
+      jfld=0
+      do ifld=2,ldimt1
+        if(ifprintNu(ifld-1)) then
+          jfld=jfld+1
+          tarea=0.0
+          twall=0.0
+          do ie=1,nelt
+            do ifa=1,2*ndim
+              if(cbc(ifa,ie,ifld).eq.'f  ') then
+                call surface_int(swall,sarea,t(1,1,1,1,ifld-1),ie,ifa)
+                twall=twall+swall
+                tarea=tarea+sarea
+              endif
+            enddo
+          enddo
+          tarea=glsum(tarea,1)
+          twall=glsum(twall,1)/tarea
 
-      if(abs(param(54)).eq.1.0) 
+          if(nint(abs(param(54))).eq.1) 
      &           tbulk=glsc3(t(1,1,1,1,ifld-1),vx,bm1,n)/glsc2(vx,bm1,n)
-      if(abs(param(54)).eq.2.0) 
+          if(nint(abs(param(54))).eq.2) 
      &           tbulk=glsc3(t(1,1,1,1,ifld-1),vy,bm1,n)/glsc2(vy,bm1,n)
-      if(abs(param(54)).eq.3.0) 
+          if(nint(abs(param(54))).eq.3) 
      &           tbulk=glsc3(t(1,1,1,1,ifld-1),vz,bm1,n)/glsc2(vz,bm1,n)
+          rNus(jfld)=1.0/((twall-tbulk)*cpfld(ifld,1))
+        endif
+      enddo
 
-      rNus=1.0/((twall-tbulk)*cpfld(ifld,1))
       if(nio.eq.0) then
-        write(*,'(a24,es15.7,i3,es15.7)') 
-     &                             "time, field, Nusselt",time,ifld,rNus
+        write(*,'(a24,es15.7,10es15.7)') 
+     &                           "time, Nusselt",time,(rNus(i),i=1,jfld)
       endif
 
       return
@@ -804,59 +827,59 @@ c-----------------------------------------------------------------------
        n=nx1*ny1*nz1*nelv
        n2=nx2*ny2*nz2*nelv
 
+       if(navg.eq.0.or.nsteps.gt.0) return
+
        call blank(fbase,124)
        do i=1,lbase
          fbas1(i)=inbase(i)
        enddo
  
-       if(navg.gt.0.and.nsteps.eq.0) then
-         atime=0.0
-         call rzero(uavg,n)
-         call rzero(vavg,n)
-         call rzero(wavg,n)
-         call rzero(pavg,n2)
-         do j=1,ldimt
-           call rzero(tavg(1,1,1,1,j),n)
-         enddo
-         do i=1,navg
-           if(i.lt.10) then
-             write(ftail,'(a7,i1)')'0.f0000',i
-           elseif(i.lt.100) then
-             write(ftail,'(a6,i2)')'0.f000',i
-           elseif(i.lt.1000) then
-             write(ftail,'(a5,i3)')'0.f00',i
-           endif
-           call blank(initc(1),132)
-           initc(1)=trim(fbase)//ftail
+       atime=0.0
+       call rzero(uavg,n)
+       call rzero(vavg,n)
+       call rzero(wavg,n)
+       call rzero(pavg,n2)
+       do j=1,ldimt
+         call rzero(tavg(1,1,1,1,j),n)
+       enddo
+       do i=1,navg
+         if(i.lt.10) then
+           write(ftail,'(a7,i1)')'0.f0000',i
+         elseif(i.lt.100) then
+           write(ftail,'(a6,i2)')'0.f000',i
+         elseif(i.lt.1000) then
+           write(ftail,'(a5,i3)')'0.f00',i
+         endif
+         call blank(initc(1),132)
+         initc(1)=trim(fbase)//ftail
  
-           call restart(1)
+         call restart(1)
  
-           atime=atime+time
-           call add2s2(uavg,vx,time,n)
-           call add2s2(vavg,vy,time,n)
-           call add2s2(wavg,vz,time,n)
-           call add2s2(pavg,pr,time,n2)
-           do j=1,ldimt
-             call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
-           enddo
-         enddo
-         time=atime
-         call cmult(uavg,1.0/atime,n)
-         call cmult(vavg,1.0/atime,n)
-         call cmult(wavg,1.0/atime,n)
-         call cmult(pavg,1.0/atime,n2)
+         atime=atime+time
+         call add2s2(uavg,vx,time,n)
+         call add2s2(vavg,vy,time,n)
+         call add2s2(wavg,vz,time,n)
+         call add2s2(pavg,pr,time,n2)
          do j=1,ldimt
-           call cmult(tavg(1,1,1,1,j),1.0/atime,n)
+           call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
          enddo
+       enddo
+       time=atime
+       call cmult(uavg,1.0/atime,n)
+       call cmult(vavg,1.0/atime,n)
+       call cmult(wavg,1.0/atime,n)
+       call cmult(pavg,1.0/atime,n2)
+       do j=1,ldimt
+         call cmult(tavg(1,1,1,1,j),1.0/atime,n)
+       enddo
  
-         call copy (vx,uavg,n)
-         call copy (vy,vavg,n)
-         call copy (vz,wavg,n)
-         call copy (pr,pavg,n2)
-         do j=1,ldimt
-           call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
-         enddo
-       endif
+       call copy (vx,uavg,n)
+       call copy (vy,vavg,n)
+       call copy (vz,wavg,n)
+       call copy (pr,pavg,n2)
+       do j=1,ldimt
+         call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
+       enddo
 
        call print_limits !print out the average data
  

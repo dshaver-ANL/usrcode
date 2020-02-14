@@ -94,9 +94,6 @@ c-----------------------------------------------------------------------
       endif
 
       if(nfld.gt.0) then
-        call interp_nfld(fpts,fwrk,nfld,pts(1,1),pts(1,2),pts(1,3),npts
-     &                                  ,iwrk,rwrk,nptmax,.true.,intp_h)
-
         call blank(fname,32)
         if(iplot.lt.10) then
           write(fname,'(a,i1,a)') "plot",iplot,".dat"
@@ -105,7 +102,22 @@ c-----------------------------------------------------------------------
         else
           write(fname,'(a,i3,a)') "plot",iplot,".dat"
         endif
+
+        if(nio.eq.0) then
+          write(*,*)'   Writing line plot data to file ',fname
+          if(if3d)then
+            write(*,'(7x,3es15.6)')pt1(1),pt1(2),pt1(3)
+            write(*,'(7x,3es15.6)')pt2(1),pt2(2),pt2(3)
+          else
+            write(*,'(7x,2es15.6)')pt1(1),pt1(2)
+            write(*,'(7x,2es15.6)')pt2(1),pt2(2)
+          endif
+          write(*,*)
+        endif
    
+        call interp_nfld(fpts,fwrk,nfld,pts(1,1),pts(1,2),pts(1,3),npts
+     &                                  ,iwrk,rwrk,nptmax,.true.,intp_h)
+
         call blank(afmt,14)
         call blank(rfmt,10)
         if(if3d) then
