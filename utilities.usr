@@ -962,7 +962,7 @@ C
           endif
         endif
         call bcast(lastep,isize)
-        if(lastep.eq.1) call outfld('  ')
+        if(lastep.eq.1) ifoutfld=.true.
       endif
 
       return
