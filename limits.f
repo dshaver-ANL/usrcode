@@ -153,7 +153,8 @@ C     first build the mask  (this mask ignores some points which maybe important
       if(.not.ifdid)then    ! need to look at it more closely)
         ifdid=.true.
         if(ifdef)then
-          ifut=.false.
+          ifut=.true.
+          if(if3d) ifut=.false.
           iftl=.false.
           if(ifheat.and.(idpss(1).ge.0))iftl=.true.
           do i=1,ldimt-1

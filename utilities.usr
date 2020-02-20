@@ -1284,3 +1284,55 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine store_solution
+      include 'SIZE'
+      include 'SOLN'
+
+      real w1,w2,w3,w4,w5
+      common /STORE/ w1(lx1*ly1*lz1*lelv)
+     &              ,w2(lx1*ly1*lz1*lelv)
+     &              ,w3(lx1*ly1*lz1*lelv)
+     &              ,w4(lx2*ly2*lz2*lelv)
+     &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+
+      n1=lx1*ly1*lz1*nelv
+      n2=lx2*ly2*lz2*nelv
+      nt=lx1*ly1*lz1*nelt
+
+      call copy(w1,vx,n1)
+      call copy(w2,vy,n1)
+      if(if3d) call copy(w3,vz,n1)
+      call copy(w4,pr,n2)
+      do i=1,ldimt
+        call copy(w5(1,i),t(1,1,1,1,i),nt)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine reload_solution
+      include 'SIZE'
+      include 'SOLN'
+
+      real w1,w2,w3,w4,w5
+      common /STORE/ w1(lx1*ly1*lz1*lelv)
+     &              ,w2(lx1*ly1*lz1*lelv)
+     &              ,w3(lx1*ly1*lz1*lelv)
+     &              ,w4(lx2*ly2*lz2*lelv)
+     &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+
+      n1=lx1*ly1*lz1*nelv
+      n2=lx2*ly2*lz2*nelv
+      nt=lx1*ly1*lz1*nelt
+
+      call copy(vx,w1,n1)
+      call copy(vy,w2,n1)
+      if(if3d) call copy(vz,w3,n1)
+      call copy(pr,w4,n2)
+      do i=1,ldimt
+        call copy(t(1,1,1,1,i),w5(1,i),nt)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
