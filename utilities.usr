@@ -1253,6 +1253,53 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine dumpcfl
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer i,n
+      real tsv(lx1,ly1,lz1,lelv),cdum
+
+      n = lx1*ly1*lz1*nelv
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.true.
+      do i=1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      call copy(tsv,t,n)
+      call compute_cfl(cdum,vx,vy,vz,dt)
+      call copy(t,cflf,n)
+      call prepost (.true.,'cfl')
+      call copy(t,tsv,n)
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine surface_area(sarea,e,f)
 
       include 'SIZE'
