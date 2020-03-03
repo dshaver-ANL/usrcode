@@ -232,6 +232,28 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine get_wall_distance(wd,itype)
+      include 'SIZE'
+
+      real w1(lx1*ly1*lz1*lelv)
+      real w2(lx1*ly1*lz1*lelv)
+      real w3(lx1*ly1*lz1*lelv)
+      real w4(lx1*ly1*lz1*lelv)
+      real w5(lx1*ly1*lz1*lelv)
+      common /SCRNS/ w1,w2,w3,w4,w5
+
+      if(itype.eq.1) then
+        call cheap_dist(wd,1,'W  ')
+      elseif(itype.eq.2) 
+        call distf(wd,1,'W  ',w1,w2,w3,w4,w5)
+      else
+        if(nio.eq.0) write(*,*) 
+     &           "Error in get_wall_distance, unsupported distance type"
+      endif
+
+      return
+      end
+C-----------------------------------------------------------------------
       real function get_nearest(loc,coord)
       include 'mpif.h'
       include 'SIZE'
