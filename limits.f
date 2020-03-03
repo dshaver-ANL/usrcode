@@ -149,8 +149,10 @@ C
       data ifdid /.false./
       save ifdid, msk
 
-C     first build the mask  (this mask ignores some points which maybe important... 
-      if(.not.ifdid)then    ! need to look at it more closely)
+C     do some initializations once
+      if(.not.ifdid)then
+
+C       set flags for values to calculate and print
         ifdid=.true.
         if(ifdef)then
           ifut=.true.
@@ -162,7 +164,8 @@ C     first build the mask  (this mask ignores some points which maybe important
           enddo
         endif
 
-        call rone(msk,nx1*ny1*nz1*nelv)
+C       build the mask  (this mask ignores some points which maybe important... 
+        call rone(msk,nx1*ny1*nz1*nelv)    ! need to look at it more closely)
         do e=1,nelv
           do isd=1,2*ndim
             if(cbc(isd,e,1).eq.'W  ') then
@@ -454,7 +457,7 @@ C     Primitive Variables
         write(*,*)
       endif
 
-c     call copy(prlag,pr,n2)  no longer necessary as of commit 6616c87a0f9ecd946701dc7e43b997350a2a57b9
+c     if(.not.ifsplit) call copy(prlag,pr,n2) !doesn't get done for PN/PN-2 
 
  254  format(a15,5a13)
  255  format(a15,5es13.4)
