@@ -235,6 +235,7 @@ C-----------------------------------------------------------------------
       subroutine get_wall_distance(wd,itype)
       include 'SIZE'
 
+      real wd(*)
       real w1(lx1*ly1*lz1*lelv)
       real w2(lx1*ly1*lz1*lelv)
       real w3(lx1*ly1*lz1*lelv)
