@@ -1075,42 +1075,6 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine load_inlet(fname)
-      implicit none
-      include 'SIZE'
-      include 'TOTAL'
-
-      character*(*) fname
-
-      integer i,n
-
-      real uin,vin,win,tin
-      common /INLBCs/ uin(lx1*ly1*lz1*lelv)
-     &               ,vin(lx1*ly1*lz1*lelv)
-     &               ,win(lx1*ly1*lz1*lelv)
-     &               ,tin(lx1*ly1*lz1*lelv,ldimt)
-
-      n=lx1*ly1*lz1*nelv
-
-      if(nio.eq.0) write(*,*)
-     &                     'loading inlet data from file ','"',fname,'"'
-
-      call store_solution
-
-      call gfldr(fname)
-
-      call copy(uin,vx,n)
-      call copy(vin,vy,n)
-      if(if3d) call copy(win,vz,n)
-      do i=1,ldimt
-        call copy(tin(1,i),t(1,1,1,1,i),n)
-      enddo
-
-      call reload_solution
-
-      return
-      end
-c-----------------------------------------------------------------------
       subroutine faccl4(a,b,c,d,iface1)
 C
 C     Collocate B with A on the surface IFACE1 of element IE.
