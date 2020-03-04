@@ -244,7 +244,7 @@ C-----------------------------------------------------------------------
 
       if(itype.eq.1) then
         call cheap_dist(wd,1,'W  ')
-      elseif(itype.eq.2) 
+      elseif(itype.eq.2) then
         call distf(wd,1,'W  ',w1,w2,w3,w4,w5)
       else
         if(nio.eq.0) write(*,*) 
