@@ -1288,10 +1288,16 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
+      real DVC,DV1,DV2,DFC
+      COMMON /SCRNS/ DVC  (LX1,LY1,LZ1,LELV),
+     $               DV1  (LX1,LY1,LZ1,LELV),
+     $               DV2  (LX1,LY1,LZ1,LELV),
+     $               DFC  (LX1,LY1,LZ1,LELV)
+
       logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
 
       integer i,n
-      real tsv(lx1,ly1,lz1,lelv),cdum
+      real tsv(lx1,ly1,lz1,lelv),cdum,psv(lx2,ly2,lz2,lelv)
 
       n = lx1*ly1*lz1*nelv
 
@@ -1311,11 +1317,27 @@ c-----------------------------------------------------------------------
         ifpsco(i)=.false.
       enddo
 
+      if(ifsplit) then
+        ifpo=.true.
+        call copy(psv,pr,n)
+
+        call qthermal
+        call add2 (qtl,usrdiv,n)
+
+        CALL OPDIV   (DVC,VX,VY,VZ)
+        CALL DSSUM   (DVC,lx1,ly1,lz1)
+        CALL COL2    (DVC,BINVM1,n)
+
+        CALL SUB3    (DFC,DVC,QTL,n)
+        CALL COL3    (pr,DFC,DFC,n)
+      endif
+
       call copy(tsv,t,n)
       call compute_cfl(cdum,vx,vy,vz,dt)
       call copy(t,cflf,n)
       call prepost (.true.,'cfl')
       call copy(t,tsv,n)
+      if(ifsplit) call copy(pr,psv,n)
 
       ifxyo = ifxyo_s
       ifpo = ifpo_s
