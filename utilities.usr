@@ -889,8 +889,6 @@ c-----------------------------------------------------------------------
         call cmult(tavg(1,1,1,1,j),1.0/atime,n)
       enddo
 
-      call store_solution
-
       call copy (vx,uavg,n)
       call copy (vy,vavg,n)
       call copy (vz,wavg,n)
@@ -909,8 +907,6 @@ c-----------------------------------------------------------------------
 
       ifxyo = ifxyo_s
 
-      call reload_solution
- 
       return
       end
 c-----------------------------------------------------------------------
@@ -1021,6 +1017,7 @@ c-----------------------------------------------------------------------
 C
 C     ends the run and dumps a restart file if the wall time is greater 
 C     than tfin (in seconds)
+C     CALL BEFORE AVG_ALL
 C
       include 'SIZE'
       include 'TOTAL'
@@ -1321,8 +1318,9 @@ c-----------------------------------------------------------------------
         ifpo=.true.
         call copy(psv,pr,n)
 
-        call qthermal
-        call add2 (qtl,usrdiv,n)
+c       call qthermal  !something wrong here
+c       call add2 (qtl,usrdiv,n)
+        call rzero(qtl,n)
 
         CALL OPDIV   (DVC,VX,VY,VZ)
         CALL DSSUM   (DVC,lx1,ly1,lz1)
