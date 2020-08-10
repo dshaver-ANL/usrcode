@@ -466,3 +466,25 @@ c     if(.not.ifsplit) call copy(prlag,pr,n2) !doesn't get done for PN/PN-2
       return
       end
 c-----------------------------------------------------------------------
+      subroutine scalar_limit(phi,tname)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      character*(*) tname
+      real phi(lx1*ly1*lz1*lelt),phimin,phimax,phiave
+      integer n
+
+      n=lx1*ly1*lz1*nelt
+
+      call get_limits_nodt(phi,phimin,phimax,phiave,n)
+
+      if(nio.eq.0) then 
+        write(*,256) tname,phimin,phimax,phiave
+        write(*,*)
+      endif
+
+ 256  format(a15,3es13.4,2a13)
+      return
+      end
+C-----------------------------------------------------------------------

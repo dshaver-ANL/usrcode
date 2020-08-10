@@ -244,7 +244,7 @@ C-----------------------------------------------------------------------
 
       if(itype.eq.1) then
         call cheap_dist(wd,1,'W  ')
-      elseif(itype.eq.2) 
+      elseif(itype.eq.2) then
         call distf(wd,1,'W  ',w1,w2,w3,w4,w5)
       else
         if(nio.eq.0) write(*,*) 
@@ -973,6 +973,8 @@ c-----------------------------------------------------------------------
       subroutine rotate_point_2d(x1,y1,x0,y0,theta,xo,yo)
       implicit none
 
+C     rotate point x1,y1 about point x0,y0 along the z-axis
+
       real x1,y1,x0,y0,theta,xo,yo
 
       xo=(x1-x0)*cos(theta)-(y1-y0)*sin(theta)+x0
@@ -1321,13 +1323,15 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'INPUT'
       include 'SOLN'
+      include 'TSTEP'
 
-      real w1,w2,w3,w4,w5
+      real w1,w2,w3,w4,w5,tsv
       common /STORE/ w1(lx1*ly1*lz1*lelv)
      &              ,w2(lx1*ly1*lz1*lelv)
      &              ,w3(lx1*ly1*lz1*lelv)
      &              ,w4(lx2*ly2*lz2*lelv)
      &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+     &              ,tsv
 
       n1=lx1*ly1*lz1*nelv
       n2=lx2*ly2*lz2*nelv
@@ -1340,6 +1344,7 @@ c-----------------------------------------------------------------------
       do i=1,ldimt
         call copy(w5(1,i),t(1,1,1,1,i),nt)
       enddo
+      tsv=time
 
       return
       end
@@ -1348,13 +1353,15 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'INPUT'
       include 'SOLN'
+      include 'TSTEP'
 
-      real w1,w2,w3,w4,w5
+      real w1,w2,w3,w4,w5,tsv
       common /STORE/ w1(lx1*ly1*lz1*lelv)
      &              ,w2(lx1*ly1*lz1*lelv)
      &              ,w3(lx1*ly1*lz1*lelv)
      &              ,w4(lx2*ly2*lz2*lelv)
      &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+     &              ,tsv
 
       n1=lx1*ly1*lz1*nelv
       n2=lx2*ly2*lz2*nelv
@@ -1367,6 +1374,7 @@ c-----------------------------------------------------------------------
       do i=1,ldimt
         call copy(t(1,1,1,1,i),w5(1,i),nt)
       enddo
+      time=tsv
 
       return
       end

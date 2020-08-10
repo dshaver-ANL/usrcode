@@ -34,38 +34,71 @@
       return
       end
 c-----------------------------------------------------------------------
-      subroutine load_inlet_region(fname,dir,x0,x1)
+      subroutine load_inlet_region(fname,dir,xx0,xx1)
       implicit none
       include 'SIZE'
       include 'TOTAL'
 
       character*(*) fname
+      character dc(3)
 
-      integer i,n
+      integer i,j,k,n1,n2,dir
+      real eps,fact,x0,xx0,x1,xx1,xx
 
-      real uin,vin,win,tin
-      common /INLBCs/ uin(lx1*ly1*lz1*lelv)
-     &               ,vin(lx1*ly1*lz1*lelv)
-     &               ,win(lx1*ly1*lz1*lelv)
-     &               ,tin(lx1*ly1*lz1*lelv,ldimt)
+      real uin,vin,win,tin,prin
+      common /INLBCs/ uin(lx1*ly1*lz1,lelv)
+     &               ,vin(lx1*ly1*lz1,lelv)
+     &               ,win(lx1*ly1*lz1,lelv)
+     &               ,tin(lx1*ly1*lz1,lelv,ldimt)
+     &               ,prin(lx2*ly2*lz2,lelv)
 
-      n=lx1*ly1*lz1*nelv
+      data dc /'X','Y','Z'/
 
-      if(nio.eq.0) write(*,*)
-     &                     'loading inlet data from file ','"',fname,'"'
+      n1=lx1*ly1*lz1
+      n2=lx2*ly2*lz2
+      x0=xx0
+      x1=xx1
+
+      if(nio.eq.0) write(*,'(a,f5.3,3a,f5.3,4a)') 'loading data for '
+     &              ,x0,'<=',dc(dir),'<=',x1,' from file ','"',fname,'"'
 
       call store_solution
 
       call gfldr_rescale(fname,dir,x0,x1)
 
-      call copy(uin,vx,n)
-      call copy(vin,vy,n)
-      if(if3d) call copy(win,vz,n)
+      call copy(uin,vx,n1*nelv)
+      call copy(vin,vy,n1*nelv)
+      if(if3d) call copy(win,vz,n1*nelv)
+      call copy(prin,pr,n2*nelv)
       do i=1,ldimt
-        call copy(tin(1,i),t(1,1,1,1,i),n)
+        call copy(tin(1,1,i),t(1,1,1,1,i),n1*nelv)
       enddo
 
       call reload_solution
+
+      eps=0.005*(x1-x0)
+      x1=x0+0.975*(x1-x0)
+      do j=1,nelv
+        do i=1,n1
+          if(dir.eq.1)xx=xm1(i,1,1,j)
+          if(dir.eq.2)xx=ym1(i,1,1,j)
+          if(dir.eq.3)xx=zm1(i,1,1,j)
+          fact=0.5*(1.0+tanh((xx-x1)/eps))
+          vx(i,1,1,j)=uin(i,j)*(1.0-fact)+vx(i,1,1,j)*fact
+          vy(i,1,1,j)=vin(i,j)*(1.0-fact)+vy(i,1,1,j)*fact
+          vz(i,1,1,j)=win(i,j)*(1.0-fact)+vz(i,1,1,j)*fact
+          do k=1,ldimt
+            t(i,1,1,j,k)=tin(i,j,k)*(1.0-fact)+t(i,1,1,j,k)*fact
+          enddo
+        enddo
+        do i=1,n2
+          if(dir.eq.1)xx=xm2(i,1,1,j)
+          if(dir.eq.2)xx=ym2(i,1,1,j)
+          if(dir.eq.3)xx=zm2(i,1,1,j)
+          fact=0.5*(1.0+tanh((xx-x1)/eps))
+          pr(i,1,1,j)=prin(i,j)*(1.0-fact)+pr(i,1,1,j)*fact
+        enddo
+      enddo
 
       return
       end
