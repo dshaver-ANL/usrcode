@@ -235,6 +235,7 @@ C-----------------------------------------------------------------------
       subroutine get_wall_distance(wd,itype)
       include 'SIZE'
 
+      real wd(*)
       real w1(lx1*ly1*lz1*lelv)
       real w2(lx1*ly1*lz1*lelv)
       real w3(lx1*ly1*lz1*lelv)
@@ -706,207 +707,208 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-       real function bc_average(phi,bca,ifld)
-       implicit none
-       include 'SIZE'
-       include 'INPUT'
+      real function bc_average(phi,bca,ifld)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
 
-       character*3 bca
-       integer ifld
-       real phi(lx1*ly1*lz1*lelv)
+      character*3 bca
+      integer ifld
+      real phi(lx1*ly1*lz1*lelv)
 
-       integer f,e
-       real phibc,Abc,dphi,dA
-       real glsum
+      integer f,e
+      real phibc,Abc,dphi,dA
+      real glsum
 
-       phibc=0.0
-       Abc=0.0
- 
-       do e=1,nelt
-         do f=1,ndim*2
-           if(cbc(f,e,ifld).eq.bca) then
-             call surface_int(dphi,dA,phi,e,f)
-             phibc=phibc+dphi
-             Abc=Abc+dA
-           endif
-         enddo
-       enddo
-       Abc=glsum(Abc,1)
-       phibc=glsum(phibc,1)/Abc
+      phibc=0.0
+      Abc=0.0
 
-       bc_average = phibc
+      do e=1,nelt
+        do f=1,ndim*2
+          if(cbc(f,e,ifld).eq.bca) then
+            call surface_int(dphi,dA,phi,e,f)
+            phibc=phibc+dphi
+            Abc=Abc+dA
+          endif
+        enddo
+      enddo
+      Abc=glsum(Abc,1)
+      phibc=glsum(phibc,1)/Abc
 
-       return
-       end
+      bc_average = phibc
+
+      return
+      end
 c-----------------------------------------------------------------------
-       real function bc_area(bca,ifld)
-       implicit none
-       include 'SIZE'
-       include 'INPUT'
+      real function bc_area(bca,ifld)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
 
-       character*3 bca
-       integer ifld
+      character*3 bca
+      integer ifld
 
-       integer f,e
-       real Abc,dA
-       real glsum
+      integer f,e
+      real Abc,dA
+      real glsum
 
-       Abc=0.0
- 
-       do 10 e=1,nelt
-       do 10 f=1,ndim*2
-         if(cbc(f,e,ifld).eq.bca) then
-           call surface_area(dA,e,f)
-           Abc=Abc+dA
-         endif
-  10   continue
-       Abc=glsum(Abc,1)
+      Abc=0.0
 
-       bc_area = Abc
+      do 10 e=1,nelt
+      do 10 f=1,ndim*2
+        if(cbc(f,e,ifld).eq.bca) then
+          call surface_area(dA,e,f)
+          Abc=Abc+dA
+        endif
+ 10   continue
+      Abc=glsum(Abc,1)
 
-       return
-       end
+      bc_area = Abc
+
+      return
+      end
 c-----------------------------------------------------------------------
-       real function bc_flux_average(phi,bca,ifld)
-       implicit none
-       include 'SIZE'
-       include 'TOTAL'
+      real function bc_flux_average(phi,bca,ifld)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
 
-       character*3 bca
-       integer ifld
-       real phi(lx1*ly1*lz1,lelv)
+      character*3 bca
+      integer ifld
+      real phi(lx1*ly1*lz1,lelv)
 
-       integer f,e,lxyz
-       parameter (lxyz=lx1*ly1*lz1)
-       real phibc,AA,dphi,dAA,w(lxyz)
-       real glsum
+      integer f,e,lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+      real phibc,AA,dphi,dAA,w(lxyz)
+      real glsum
 
-       phibc=0.0
-       AA=0.0
- 
-       do e=1,nelt
-         do f=1,ndim*2
-           if(cbc(f,e,ifld).eq.bca) then
-             call surface_flux2(dphi,phi,e,f)
-             call surface_flux(dAA,vx,vy,vz,e,f,w)
-             phibc=phibc+dphi
-             AA=AA+dAA
-           endif
-         enddo
-       enddo
-       AA=glsum(AA,1)
-       phibc=glsum(phibc,1)/AA
+      phibc=0.0
+      AA=0.0
 
-       bc_flux_average = phibc
+      do e=1,nelt
+        do f=1,ndim*2
+          if(cbc(f,e,ifld).eq.bca) then
+            call surface_flux2(dphi,phi,e,f)
+            call surface_flux(dAA,vx,vy,vz,e,f,w)
+            phibc=phibc+dphi
+            AA=AA+dAA
+          endif
+        enddo
+      enddo
+      AA=glsum(AA,1)
+      phibc=glsum(phibc,1)/AA
 
-       return
-       end
+      bc_flux_average = phibc
+
+      return
+      end
 c-----------------------------------------------------------------------
-       real function bc_max(phi,bca,ifld)
-       implicit none
-       include 'SIZE'
-       include 'INPUT'
+      real function bc_max(phi,bca,ifld)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
 
-       character*3 bca
-       integer ifld
-       real phi(lx1,ly1,lz1,1)
+      character*3 bca
+      integer ifld
+      real phi(lx1,ly1,lz1,1)
 
-       real glmax
+      real glmax
 
-       integer f,e,i,i0,i1,j,j0,j1,k,k0,k1
-       real bcmx
+      integer f,e,i,i0,i1,j,j0,j1,k,k0,k1
+      real bcmx
 
-       do 10 e=1,nelt
-       do 10 f=1,ndim*2
-         if(cbc(f,e,ifld).eq.bca) then
-           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,f)
-           do 20 k=k0,k1
-           do 20 j=j0,j1
-           do 20 i=i0,i1
-             bcmx=max(bcmx,phi(i,j,k,e))
- 20        continue
-         endif
- 10    continue
+      do 10 e=1,nelt
+      do 10 f=1,ndim*2
+        if(cbc(f,e,ifld).eq.bca) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,f)
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            bcmx=max(bcmx,phi(i,j,k,e))
+ 20       continue
+        endif
+ 10   continue
 
-       bc_max = glmax(bcmx,1)
+      bc_max = glmax(bcmx,1)
 
-       return
-       end
+      return
+      end
 c-----------------------------------------------------------------------
-       subroutine average_files(inbase,lbase,navg)
-       implicit none
-       include 'SIZE'
-       include 'TOTAL'
-       include 'AVG'
- 
-       character     inbase(1),fbas1(124)
-       character*124 fbase
-       character*8   ftail
-       integer lbase,navg,n,n2,i,j
+      subroutine average_files(inbase,navg)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'AVG'
 
-       equivalence (fbas1,fbase)
- 
-       n=nx1*ny1*nz1*nelv
-       n2=nx2*ny2*nz2*nelv
+      character*(*) inbase
+      character*8   ftail
+      integer lbase,navg,n,n2,i,j
+      logical ifxyo_s
 
-       if(navg.eq.0.or.nsteps.gt.0) return
+      n=nx1*ny1*nz1*nelv
+      n2=nx2*ny2*nz2*nelv
 
-       call blank(fbase,124)
-       do i=1,lbase
-         fbas1(i)=inbase(i)
-       enddo
- 
-       atime=0.0
-       call rzero(uavg,n)
-       call rzero(vavg,n)
-       call rzero(wavg,n)
-       call rzero(pavg,n2)
-       do j=1,ldimt
-         call rzero(tavg(1,1,1,1,j),n)
-       enddo
-       do i=1,navg
-         if(i.lt.10) then
-           write(ftail,'(a7,i1)')'0.f0000',i
-         elseif(i.lt.100) then
-           write(ftail,'(a6,i2)')'0.f000',i
-         elseif(i.lt.1000) then
-           write(ftail,'(a5,i3)')'0.f00',i
-         endif
-         call blank(initc(1),132)
-         initc(1)=trim(fbase)//ftail
- 
-         call restart(1)
- 
-         atime=atime+time
-         call add2s2(uavg,vx,time,n)
-         call add2s2(vavg,vy,time,n)
-         call add2s2(wavg,vz,time,n)
-         call add2s2(pavg,pr,time,n2)
-         do j=1,ldimt
-           call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
-         enddo
-       enddo
-       time=atime
-       call cmult(uavg,1.0/atime,n)
-       call cmult(vavg,1.0/atime,n)
-       call cmult(wavg,1.0/atime,n)
-       call cmult(pavg,1.0/atime,n2)
-       do j=1,ldimt
-         call cmult(tavg(1,1,1,1,j),1.0/atime,n)
-       enddo
- 
-       call copy (vx,uavg,n)
-       call copy (vy,vavg,n)
-       call copy (vz,wavg,n)
-       call copy (pr,pavg,n2)
-       do j=1,ldimt
-         call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
-       enddo
+      if(navg.eq.0.or.nsteps.gt.0) return
 
-       call print_limits !print out the average data
- 
-       return
-       end
+      atime=0.0
+      call rzero(uavg,n)
+      call rzero(vavg,n)
+      call rzero(wavg,n)
+      call rzero(pavg,n2)
+      do j=1,ldimt
+        call rzero(tavg(1,1,1,1,j),n)
+      enddo
+      do i=1,navg
+        if(i.lt.10) then
+          write(ftail,'(a7,i1)')'0.f0000',i
+        elseif(i.lt.100) then
+          write(ftail,'(a6,i2)')'0.f000',i
+        elseif(i.lt.1000) then
+          write(ftail,'(a5,i3)')'0.f00',i
+        endif
+        call blank(initc(1),132)
+        initc(1)=trim(inbase)//ftail
+
+        call restart(1)
+
+        atime=atime+time
+        call add2s2(uavg,vx,time,n)
+        call add2s2(vavg,vy,time,n)
+        call add2s2(wavg,vz,time,n)
+        call add2s2(pavg,pr,time,n2)
+        do j=1,ldimt
+          call add2s2(tavg(1,1,1,1,j),t(1,1,1,1,j),time,n)
+        enddo
+      enddo
+      time=atime
+      call cmult(uavg,1.0/atime,n)
+      call cmult(vavg,1.0/atime,n)
+      call cmult(wavg,1.0/atime,n)
+      call cmult(pavg,1.0/atime,n2)
+      do j=1,ldimt
+        call cmult(tavg(1,1,1,1,j),1.0/atime,n)
+      enddo
+
+      call copy (vx,uavg,n)
+      call copy (vy,vavg,n)
+      call copy (vz,wavg,n)
+      call copy (pr,pavg,n2)
+      do j=1,ldimt
+        call copy(t(1,1,1,1,j),tavg(1,1,1,1,j),n)
+      enddo
+
+      if(nio.eq.0) write(*,*) "  average data:"
+      call print_limits !print out the average data
+
+      ifxyo_s = ifxyo
+      ifxyo=.true.
+
+      call prepost (.true.,'AVG')
+
+      ifxyo = ifxyo_s
+
+      return
+      end
 c-----------------------------------------------------------------------
       subroutine get_face_m1centroid(xx,yy,zz,ie,iface)
       implicit none
@@ -1017,6 +1019,7 @@ c-----------------------------------------------------------------------
 C
 C     ends the run and dumps a restart file if the wall time is greater 
 C     than tfin (in seconds)
+C     CALL BEFORE AVG_ALL
 C
       include 'SIZE'
       include 'TOTAL'
@@ -1248,10 +1251,16 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
+      real DVC,DV1,DV2,DFC
+      COMMON /SCRNS/ DVC  (LX1,LY1,LZ1,LELV),
+     $               DV1  (LX1,LY1,LZ1,LELV),
+     $               DV2  (LX1,LY1,LZ1,LELV),
+     $               DFC  (LX1,LY1,LZ1,LELV)
+
       logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
 
       integer i,n
-      real tsv(lx1,ly1,lz1,lelv),cdum
+      real tsv(lx1,ly1,lz1,lelv),cdum,psv(lx2,ly2,lz2,lelv)
 
       n = lx1*ly1*lz1*nelv
 
@@ -1271,11 +1280,28 @@ c-----------------------------------------------------------------------
         ifpsco(i)=.false.
       enddo
 
+      if(ifsplit) then
+        ifpo=.true.
+        call copy(psv,pr,n)
+
+c       call qthermal  !something wrong here
+c       call add2 (qtl,usrdiv,n)
+        call rzero(qtl,n)
+
+        CALL OPDIV   (DVC,VX,VY,VZ)
+        CALL DSSUM   (DVC,lx1,ly1,lz1)
+        CALL COL2    (DVC,BINVM1,n)
+
+        CALL SUB3    (DFC,DVC,QTL,n)
+        CALL COL3    (pr,DFC,DFC,n)
+      endif
+
       call copy(tsv,t,n)
       call compute_cfl(cdum,vx,vy,vz,dt)
       call copy(t,cflf,n)
       call prepost (.true.,'cfl')
       call copy(t,tsv,n)
+      if(ifsplit) call copy(pr,psv,n)
 
       ifxyo = ifxyo_s
       ifpo = ifpo_s

@@ -125,6 +125,7 @@ c-----------------------------------------------------------------------
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
      $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt)
 
       call get_flux_and_area(ubar,abar)
       ubar  = ubar/abar        ! Ubar
@@ -166,6 +167,7 @@ c-----------------------------------------------------------------------
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
      $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt)
       real vvflux,vvarea
       real work(lx1*ly1*lz1)
       integer e,f
@@ -312,6 +314,7 @@ c
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
      $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt)
       common /nekmpi/ nidd,npp,nekcomm,nekgroup,nekreal
 
       n = nx1*ny1*nz1*nelv
