@@ -1,3 +1,0 @@
-      double precision u_in,h_in,q_pp,D_h,k_in,omega_in,omega_w
-      common /boundary_conditions/ 
-     & u_in,h_in,q_pp,D_h,k_in,omega_in,omega_w

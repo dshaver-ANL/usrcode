@@ -975,6 +975,8 @@ c-----------------------------------------------------------------------
       subroutine rotate_point_2d(x1,y1,x0,y0,theta,xo,yo)
       implicit none
 
+C     rotate point x1,y1 about point x0,y0 along the z-axis
+
       real x1,y1,x0,y0,theta,xo,yo
 
       xo=(x1-x0)*cos(theta)-(y1-y0)*sin(theta)+x0
@@ -1074,42 +1076,6 @@ c-----------------------------------------------------------------------
          i = i+1
          dq    = dq + area(i,1,f,e)*w(j1,j2,1)
   100 continue
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine load_inlet(fname)
-      implicit none
-      include 'SIZE'
-      include 'TOTAL'
-
-      character*(*) fname
-
-      integer i,n
-
-      real uin,vin,win,tin
-      common /INLBCs/ uin(lx1*ly1*lz1*lelv)
-     &               ,vin(lx1*ly1*lz1*lelv)
-     &               ,win(lx1*ly1*lz1*lelv)
-     &               ,tin(lx1*ly1*lz1*lelv,ldimt)
-
-      n=lx1*ly1*lz1*nelv
-
-      if(nio.eq.0) write(*,*)
-     &                     'loading inlet data from file ','"',fname,'"'
-
-      call store_solution
-
-      call gfldr(fname)
-
-      call copy(uin,vx,n)
-      call copy(vin,vy,n)
-      if(if3d) call copy(win,vz,n)
-      do i=1,ldimt
-        call copy(tin(1,i),t(1,1,1,1,i),n)
-      enddo
-
-      call reload_solution
 
       return
       end
@@ -1383,13 +1349,15 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'INPUT'
       include 'SOLN'
+      include 'TSTEP'
 
-      real w1,w2,w3,w4,w5
+      real w1,w2,w3,w4,w5,tsv
       common /STORE/ w1(lx1*ly1*lz1*lelv)
      &              ,w2(lx1*ly1*lz1*lelv)
      &              ,w3(lx1*ly1*lz1*lelv)
      &              ,w4(lx2*ly2*lz2*lelv)
-     &              ,w5(lx1*ly1*lz1*lelt,ldimt)
+     &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+     &              ,tsv
 
       n1=lx1*ly1*lz1*nelv
       n2=lx2*ly2*lz2*nelv
@@ -1402,6 +1370,7 @@ c-----------------------------------------------------------------------
       do i=1,ldimt
         call copy(w5(1,i),t(1,1,1,1,i),nt)
       enddo
+      tsv=time
 
       return
       end
@@ -1410,13 +1379,15 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'INPUT'
       include 'SOLN'
+      include 'TSTEP'
 
-      real w1,w2,w3,w4,w5
+      real w1,w2,w3,w4,w5,tsv
       common /STORE/ w1(lx1*ly1*lz1*lelv)
      &              ,w2(lx1*ly1*lz1*lelv)
      &              ,w3(lx1*ly1*lz1*lelv)
      &              ,w4(lx2*ly2*lz2*lelv)
-     &              ,w5(lx1*ly1*lz1*lelt,ldimt)
+     &              ,w5(lx1*ly1*lz1*lelv,ldimt)
+     &              ,tsv
 
       n1=lx1*ly1*lz1*nelv
       n2=lx2*ly2*lz2*nelv
@@ -1429,6 +1400,7 @@ c-----------------------------------------------------------------------
       do i=1,ldimt
         call copy(t(1,1,1,1,i),w5(1,i),nt)
       enddo
+      time=tsv
 
       return
       end
