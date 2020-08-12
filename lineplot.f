@@ -4,9 +4,6 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      integer nptmax
-      parameter(nptmax=1001)
-
       real pt1(ldim),pt2(ldim)
       integer npts,lpts,iplot
 
@@ -16,15 +13,15 @@ c-----------------------------------------------------------------------
       integer intp_h,i,j,nt,nfld
       save intp_h
       logical ifset,ifdo
-      real dx,pts(nptmax,ldim)
+      real dx,pts(lhis,ldim)
       real fwrk(lx1*ly1*lz1*lelt,ldim+1+ldimt)
-      real fpts(nptmax*(ldim+1+ldimt))
-      real uout(nptmax),vout(nptmax),wout(nptmax)
-      real prout(nptmax),tout(nptmax,ldimt)
+      real fpts(lhis*(ldim+1+ldimt))
+      real uout(lhis),vout(lhis),wout(lhis)
+      real prout(lhis),tout(lhis,ldimt)
       character*4 outname(ldim+1+ldimt)
 
-      real rwrk(nptmax,ldim+1)
-      integer iwrk(nptmax,3)
+      real rwrk(lhis,ldim+1)
+      integer iwrk(lhis,3)
       save rwrk,iwrk
 
       save ifdo,ifset
@@ -39,9 +36,9 @@ c-----------------------------------------------------------------------
       nt=lx1*ly1*lz1*nelt
 
       npts=max(lpts,2)
-      if(npts.gt.nptmax) then
+      if(npts.gt.lhis) then
         if(nio.eq.0) write(*,*)
-     &               "Error in lineplot, recompile with nptmax >= ",npts
+     &       "Error in lineplot, recompile with lhis in SIZE >= ",npts
         ifdo=.false.
         return
       endif
@@ -116,7 +113,7 @@ c-----------------------------------------------------------------------
         endif
    
         call interp_nfld(fpts,fwrk,nfld,pts(1,1),pts(1,2),pts(1,3),npts
-     &                                  ,iwrk,rwrk,nptmax,.true.,intp_h)
+     &                                    ,iwrk,rwrk,lhis,.true.,intp_h)
 
         call blank(afmt,14)
         call blank(rfmt,10)
