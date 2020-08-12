@@ -1314,6 +1314,84 @@ c       call add2 (qtl,usrdiv,n)
       return
       end
 c-----------------------------------------------------------------------
+      subroutine dumpmetrics
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      real DVC,DV1,DV2,DFC
+      COMMON /SCRNS/ DVC  (LX1,LY1,LZ1,LELV),
+     $               DV1  (LX1,LY1,LZ1,LELV),
+     $               DV2  (LX1,LY1,LZ1,LELV),
+     $               DFC  (LX1,LY1,LZ1,LELV)
+
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer i,n
+      real tsv(lx1*ly1*lz1*lelv,ldimt),cdum,psv(lx2,ly2,lz2,lelv)
+      real wd(lx1*ly1*lz1*lelv)
+
+      n = lx1*ly1*lz1*nelv
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.true.
+      ifpsco(1)=.true.
+      do i=2,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      if(ifsplit) then
+        ifpo=.true.
+        call copy(psv,pr,n)
+
+c       call qthermal  !something wrong here
+c       call add2 (qtl,usrdiv,n)
+        call rzero(qtl,n)
+
+        CALL OPDIV   (DVC,VX,VY,VZ)
+        CALL DSSUM   (DVC,lx1,ly1,lz1)
+        CALL COL2    (DVC,BINVM1,n)
+
+        CALL SUB3    (DFC,DVC,QTL,n)
+        CALL COL3    (pr,DFC,DFC,n)
+      endif
+
+      call copy(tsv(1,1),t,n)
+      call compute_cfl(cdum,vx,vy,vz,dt)
+      call copy(t,cflf,n)
+
+      call copy(tsv(1,2),t(1,1,1,1,2),n)
+      call get_wall_distance(wd,2)
+      call get_y_p(wd,t(1,1,1,1,2),.true.)
+      
+      call prepost (.true.,'mtr')
+      call copy(t,tsv,n)
+      call copy(t(1,1,1,1,2),tsv(1,2),n)
+      if(ifsplit) call copy(pr,psv,n)
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine surface_area(sarea,e,f)
 
       include 'SIZE'
