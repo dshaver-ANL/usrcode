@@ -158,12 +158,13 @@ c-----------------------------------------------------------------------
 
 C     outputs an azimuthal-avereaged radial plot at z=zz
 
-      integer npts,lpts,iplot
+      integer lpts,ntheta
+      real r1,r2,zz
 
       character*32 fname
-      character*14 afmt
+      character*15 afmt
       character*10 rfmt
-      integer intp_h,i,j,nt,nfld
+      integer intp_h,i,j,nt,npts,iplot,nfld
       save intp_h
       logical ifset,ifdo
       real dx,theta,pts(lhis,ldim),xx,yy
@@ -242,9 +243,9 @@ c     figure out what to plot and pack the working array
         call rzero(fpts,lhis*(ldim+1+ldimt))
 
         pts(1,1)=r1
-        dx=(r2-r1)/(real(npts-1)
+        dx=(r2-r1)/(real(npts-1))
         do i=2,npts
-          pts(i,1)=pts(i-1),1)+dx
+          pts(i,1)=pts(i-1,1)+dx
         enddo
         call rzero(pts(1,2),npts)
         call cfill(pts(1,3),zz,npts)
@@ -274,42 +275,21 @@ c     figure out what to plot and pack the working array
         endif
 
         if(nio.eq.0) then
-          write(*,*)'   Writing line plot data to file ',fname
-          if(if3d)then
-            write(*,'(7x,3es15.6)')pt1(1),pt1(2),pt1(3)
-            write(*,'(7x,3es15.6)')pt2(1),pt2(2),pt2(3)
-          else
-            write(*,'(7x,2es15.6)')pt1(1),pt1(2)
-            write(*,'(7x,2es15.6)')pt2(1),pt2(2)
-          endif
+          write(*,*)'   Writing azimuthal average data to file ',fname
+            write(*,'(7x,2es15.6,a,es15.6)')r1,r2,' at z = ',zz
           write(*,*)
         endif
 
         call blank(afmt,14)
         call blank(rfmt,10)
-        if(if3d) then
-          write(afmt,'(a1,i2,a11)')"(",nfld+3,"a16,es16.8)"
-          write(rfmt,'(a1,i2,a7)')"(",nfld+3,"es16.8)"
-        else
-          write(afmt,'(a1,i2,a11)')"(",nfld+2,"a16,es16.8)"
-          write(rfmt,'(a1,i2,a7)')"(",nfld+2,"es16.8)"
-        endif
+        write(afmt,'(a1,i2,a12)')"(",nfld+1,"a16,2es16.8)"
+        write(rfmt,'(a1,i2,a7)')"(",nfld+1,"es16.8)"
 
         if(nio.eq.0) then
           open(unit=10,file=fname,status='unknown',form='formatted')
-          if(if3d) then
-            write(10,afmt)"X","Y","Z",(outname(i),i=1,nfld),time
-          else
-            write(10,afmt)"X","Y",(outname(i),i=1,nfld),time
-          endif
+          write(10,afmt)"R",(outname(i),i=1,nfld),time,zz
           do i=1,npts
-            if(if3d) then
-              write(10,rfmt)pts(i,1),pts(i,2),pts(i,3)
-     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
-            else
-              write(10,rfmt)pts(i,1),pts(i,2)
-     &                               ,(fpts(i+j),j=0,(npts*nfld-1),npts)
-            endif
+            write(10,rfmt)pts(i,1),(fpts(i+j),j=0,(npts*nfld-1),npts)
           enddo
         endif
 
