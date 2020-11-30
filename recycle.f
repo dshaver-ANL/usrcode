@@ -4,12 +4,12 @@ c     include 'SIZE'
 c     include 'TOTAL'
 
 c     logical iffield
-c     common /lvelbc/ iffield(ldimt)
+c     common /lvelbc/ iffield(ldimt) ! set to true to do recycling for temp/PSs
 
 c     data iffield /.false.*ldimt/
 
-c     iffield(2)=.true.
-c     iffield(3)=.true.
+c     iffield(2)=.true. ! recycle field 3 (scalar 1, ifield-1)
+c     iffield(3)=.true. ! recycle field 4 (scalar 2, ifield-1)
 
 c     return
 c     end
@@ -45,7 +45,7 @@ c     include 'SIZE'
 c     include 'TOTAL'
 c     parameter (lt=lx1*ly1*lz1*lelt)
 c     common /myoutflow / d(lt),w1(lt) 
-c     real dx,dy,dz,ubar
+c     real dx,dy,dz,ubar,tbar
 
 c     integer icalld
 c     save    icalld
@@ -61,7 +61,8 @@ c     dx=5.
 c     dy=0.
 c     dz=0.
 c     ubar = 1.0
-c     call set_inflow_fpt(dx,dy,dz,ubar)
+c     tbar = 0.0
+c     call set_inflow_fpt(dx,dy,dz,ubar,tbar)
 
 c*************************************************************
 c     return
@@ -387,7 +388,7 @@ c velocity data to be interpolated from
       save    icalld
       data    icalld /0/
       real dxx,dyy,dzz
-      real ubar,tbar(ldimt)
+      real ubar,tbar
 
       parameter (lt=lx1*lz1*lelv)
       real rst_si(lt*ldim),xyz_si(lt*ldim)
@@ -424,7 +425,7 @@ c       Eval fields and copy to uvwin array
           call field_copy_si(win,vals_si,ptid,nptsi)
         endif
 
-c       Rescale the flow so that ubar,vbar or wbar is ubar
+c       Rescale the flow to preserve mean flow rate
         call rescale_inflow_fpt(ubar)
       endif
 
@@ -432,7 +433,7 @@ c       Rescale the flow so that ubar,vbar or wbar is ubar
         if(iffield(i)) then
           call field_eval_si(vals_si,1,t(1,1,1,1,i))
           call field_copy_si(tin(1,1,1,1,i),vals_si,ptid,nptsi)
-          if(i.eq.1) call rescale_tinflow_fpt(tbar(i),i) !only temperature needs to be rescaled
+          if(i.eq.1) call rescale_tinflow_fpt(tbar,i) !only temperature needs to be rescaled
         endif
       enddo
 
