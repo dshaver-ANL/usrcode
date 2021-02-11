@@ -9,7 +9,7 @@ C
       include 'TOTAL'
 
       real phi(1),norm(3),pt(3),eps
-      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,glsum
+      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,xsa,glsum
 
       integer i,j,k,n
 
@@ -36,7 +36,9 @@ C
         w1=w1+phi(i)*bm1(i,1,1,1)*del
         w2=w2+bm1(i,1,1,1)*del
       enddo
-      planar_ave_m1 = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
+      xsa=glsum(w2,1)
+      planar_ave_m1 = glsum(w1,1)/max(xsa,1.0e-8)
+      xsa=2.0*xsa/eps  !cross sectional area
 
       return
       end
@@ -51,7 +53,7 @@ C
       include 'TOTAL'
 
       real phi(1),norm(3),pt(3),eps
-      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,glsum
+      real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,xsa,glsum
 
       integer i,j,k,n
 
@@ -78,7 +80,9 @@ C
         w1=w1+phi(i)*bm2(i,1,1,1)*del
         w2=w2+bm2(i,1,1,1)*del
       enddo
-      planar_ave_m2 = glsum(w1,1)/max(glsum(w2,1),1.0e-8)
+      xsa=glsum(w2,1)
+      planar_ave_m2 = glsum(w1,1)/max(xsa,1.0e-8)
+      xsa=2.0*xsa/eps  !cross sectional area
 
       return
       end
