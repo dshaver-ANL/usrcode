@@ -651,12 +651,17 @@ c-----------------------------------------------------------------------
         do i=1,ldimt
           ifprintNu(i)=.false.
         enddo 
-      endif
-      if(nsteps.eq.0) then
-        do i=1,ldimt
-          ifprintNu(i)=.true.
+        ifldsv=ifield
+        do ifield=2,nfield
+          call makeuq
         enddo
+        ifield=ifldsv
       endif
+c     if(nsteps.eq.0) then
+c       do i=1,ldimt
+c         ifprintNu(i)=.true.
+c       enddo
+c     endif
 
       if(abs(param(54)).lt.0.1) then
         ifdo=.false.
