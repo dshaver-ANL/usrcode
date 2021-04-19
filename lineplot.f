@@ -13,7 +13,7 @@ c-----------------------------------------------------------------------
       integer intp_h,i,j,nt,nfld
       save intp_h
       logical ifset,ifdo
-      real dx,pts(lhis,ldim)
+      real dx,pts(lhis,3)
       real fwrk(lx1*ly1*lz1*lelt,ldim+1+ldimt)
       real fpts(lhis*(ldim+1+ldimt))
       real uout(lhis),vout(lhis),wout(lhis)
@@ -103,8 +103,8 @@ c-----------------------------------------------------------------------
         if(nio.eq.0) then
           write(*,*)'   Writing line plot data to file ',fname
           if(if3d)then
-            write(*,'(7x,3es15.6)')pt1(1),pt1(2),pt1(3)
-            write(*,'(7x,3es15.6)')pt2(1),pt2(2),pt2(3)
+            write(*,'(7x,3es15.6)')pt1(1),pt1(2),pt1(ldim)
+            write(*,'(7x,3es15.6)')pt2(1),pt2(2),pt2(ldim)
           else
             write(*,'(7x,2es15.6)')pt1(1),pt1(2)
             write(*,'(7x,2es15.6)')pt2(1),pt2(2)
@@ -167,7 +167,7 @@ C     outputs an azimuthal-avereaged radial plot at z=zz
       integer intp_h,i,j,nt,npts,iplot,nfld
       save intp_h
       logical ifset,ifdo
-      real dx,theta,pts(lhis,ldim),xx,yy
+      real dx,theta,pts(lhis,3),xx,yy
       real fwrk(lx1*ly1*lz1*lelt,ldim+1+ldimt)
       real fpts(lhis*(ldim+1+ldimt)),gpts(lhis*(ldim+1+ldimt))
       real uout(lhis),vout(lhis),wout(lhis)
@@ -193,6 +193,12 @@ C     outputs an azimuthal-avereaged radial plot at z=zz
       if(npts.gt.lhis) then
         if(nio.eq.0) write(*,*)
      &        "Error in lineplot, recompile with lhis in SIZE >= ",npts
+        ifdo=.false.
+        return
+      endif
+      if(ldim.lt.3) then
+        if(nio.eq.0) write(*,*)
+     &        "Error in lineplot, recompile with ldim in SIZE = 3"
         ifdo=.false.
         return
       endif
@@ -248,7 +254,7 @@ c     figure out what to plot and pack the working array
           pts(i,1)=pts(i-1,1)+dx
         enddo
         call rzero(pts(1,2),npts)
-        call cfill(pts(1,3),zz,npts)
+        call cfill(pts(1,ldim),zz,npts)
 
         theta=2.*pi/real(ntheta)
         do i=1,ntheta
@@ -316,7 +322,7 @@ c-----------------------------------------------------------------------
       integer intp_h,i,j,nt,nfld
       save intp_h
       logical ifset,ifdo
-      real dx,pts(lhis,ldim)
+      real dx,pts(lhis,3)
       real fwrk(lx1*ly1*lz1*lelt,ldim+1+ldimt)
       real fpts(lhis*(ldim+1+ldimt))
       real uout(lhis),vout(lhis),wout(lhis)
