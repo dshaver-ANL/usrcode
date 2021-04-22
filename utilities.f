@@ -919,35 +919,40 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine get_face_m1centroid(xx,yy,zz,ie,iface)
+      subroutine get_face_m1centroid(xx,yy,zz,rr,ie,iface)
       implicit none
       include 'SIZE'
-      include 'GEOM'
-      include 'MASS'
+      include 'TOTAL'
 
       integer ie,iface
-      real xx,yy,zz
+      real xx,yy,zz,r0,rr
 
-      integer i,i0,i1,j,j0,j1,k,k0,k1
+      integer i,i0,i1,j,j0,j1,k,k0,k1,ifc
       real bm0
 
       bm0=0.0
       xx=0.0
       yy=0.0
       zz=0.0
-      call facind(i0,i1,k0,k1,j0,j1,nx1,ny1,nz1,iface)
+      rr=0.0
+      ifc=0
+      call facind(i0,i1,j0,j1,k0,k1,nx1,ny1,nz1,iface)
       do 10 k=k0,k1
       do 10 j=j0,j1
       do 10 i=i0,i1
-        bm0=bm0+bm1(i,j,k,ie)
-        xx=xx+xm1(i,j,k,ie)*bm1(i,j,k,ie)
-        yy=yy+ym1(i,j,k,ie)*bm1(i,j,k,ie)
-        zz=zz+zm1(i,j,k,ie)*bm1(i,j,k,ie)
+        ifc=ifc+1
+        bm0=bm0+area(ifc,1,iface,ie)
+        xx=xx+xm1(i,j,k,ie)*area(ifc,1,iface,ie)
+        yy=yy+ym1(i,j,k,ie)*area(ifc,1,iface,ie)
+        zz=zz+zm1(i,j,k,ie)*area(ifc,1,iface,ie)
+        r0=sqrt(xm1(i,j,k,ie)**2+ym1(i,j,k,ie)**2)
+        rr=rr+r0*area(ifc,1,iface,ie)
  10   continue
 
       xx=xx/bm0
       yy=yy/bm0
       zz=zz/bm0
+      rr=rr/bm0
 
       return
       end
