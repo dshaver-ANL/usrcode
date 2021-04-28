@@ -504,7 +504,7 @@ C
 c     real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1*ly1*lz1,3,3)
       real tau(3),norm(3),vsca,tauw,dist
-      real utau,rho,mu,yp,vol
+      real utau,rho,mu,yp,vol,yp0
       real glmin,glmax,glsum
       logical ifgrad, ifdid
 
@@ -610,8 +610,9 @@ C     Now do the thing
                   tauw=0.0
                   utau=0.0
                 endif
-                yp=yp+dist*utau*rho/mu*bm1(i,j,k,e)
-                phi(i,j,k,e)=yp
+                yp0=dist*utau*rho/mu
+                yp=yp+yp0*bm1(i,j,k,e)
+                phi(i,j,k,e)=yp0
                 vol=vol+bm1(i,j,k,e)
               endif
   50        continue
