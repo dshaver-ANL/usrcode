@@ -157,15 +157,15 @@ C-----------------------------------------------------------------------
             axicnt(ifld)=axicnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'int')then
             intcnt(ifld)=intcnt(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'   ')then
+            othcnt(ifld)=othcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).ne.'E  ')then
-            if(ukncnt(ifld).eq.0) then  !handle one unknown BC
-              uid(ifld)=cbc(iside,ielem,ifld)
-              ukncnt(ifld)=1
-            elseif(cbc(iside,ielem,ifld).eq.uid(ifld)) then
+c           if(ukncnt(ifld).eq.0) then  !handle one unknown BC
+c             uid(ifld)=cbc(iside,ielem,ifld) !can't synch uid across domains
+c             ukncnt(ifld)=1
+c           elseif(cbc(iside,ielem,ifld).eq.uid(ifld)) then
               ukncnt(ifld)=ukncnt(ifld)+1
-            else
-              othcnt(ifld)=othcnt(ifld)+1 !multiple unknown BCs 
-            endif
+c           endif
           endif
         enddo
         enddo
@@ -214,8 +214,8 @@ C-----------------------------------------------------------------------
           if(symcnt(ifld).gt.0)write(*,256)'Symmetry',symcnt(ifld)
           if(axicnt(ifld).gt.0)write(*,256)
      &                                     'Axisymmetric',axicnt(ifld)
-          if(ukncnt(ifld).gt.0)write(*,257)uid(ifld),ukncnt(ifld)
-          if(othcnt(ifld).gt.0)write(*,256)'Other',othcnt(ifld)
+          if(othcnt(ifld).gt.0)write(*,256)'"   "',othcnt(ifld)
+          if(ukncnt(ifld).gt.0)write(*,256)'Unknown',ukncnt(ifld)
           write(*,*)
         enddo
       endif
@@ -223,7 +223,7 @@ C-----------------------------------------------------------------------
  254  format(5x,a,i2,a)
  255  format(2x,a)
  256  format(2x,a16,1x,i12)
- 257  format(2x,'Unknown boundary of type: "',a,'" ',i9)
+c257  format(2x,'Unknown boundary of type: "',a,'" ',i9)
 
       return
       end
