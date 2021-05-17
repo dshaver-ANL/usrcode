@@ -5,9 +5,10 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
 
       real pt1(ldim),pt2(ldim)
-      integer npts,lpts,iplot
+      integer npts,lpts,iplot,ls
 
-      character*32 fname
+      character*132 fname
+      character*10 ftail
       character*14 afmt
       character*10 rfmt
       integer intp_h,i,j,nt,nfld
@@ -91,14 +92,20 @@ c-----------------------------------------------------------------------
       endif
 
       if(nfld.gt.0) then
-        call blank(fname,32)
+        call blank(fname,132)
+        call blank(ftail,9)
         if(iplot.lt.10) then
-          write(fname,'(a,i1,a)') "plot",iplot,".dat"
+          write(ftail,'(a,i1,a)') ".0000",iplot,".dat"
         elseif(iplot.lt.100) then
-          write(fname,'(a,i2,a)') "plot",iplot,".dat"
+          write(ftail,'(a,i2,a)') ".000",iplot,".dat"
+        elseif(iplot.lt.1000) then
+          write(ftail,'(a,i3,a)') ".00",iplot,".dat"
+        elseif(iplot.lt.10000) then
+          write(ftail,'(a,i4,a)') ".0",iplot,".dat"
         else
-          write(fname,'(a,i3,a)') "plot",iplot,".dat"
+          write(ftail,'(a,i5,a)') ".",iplot,".dat"
         endif
+        fname=trim(session)//ftail
 
         if(nio.eq.0) then
           write(*,*)'   Writing line plot data to file ',fname
