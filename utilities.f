@@ -184,6 +184,7 @@ c           endif
         inscnt(ifld)=iglsum(inscnt(ifld),1)
         symcnt(ifld)=iglsum(symcnt(ifld),1)
         axicnt(ifld)=iglsum(axicnt(ifld),1)
+        intcnt(ifld)=iglsum(intcnt(ifld),1)
         othcnt(ifld)=iglsum(othcnt(ifld),1)
         ukncnt(ifld)=iglsum(ukncnt(ifld),1)
       enddo
