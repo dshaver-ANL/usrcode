@@ -7,7 +7,7 @@ c-----------------------------------------------------------------------
       real pt1(ldim),pt2(ldim)
       integer npts,lpts,iplot,ls
 
-      character*132 fname
+      character*141 fname
       character*10 ftail
       character*14 afmt
       character*10 rfmt
@@ -43,7 +43,7 @@ c-----------------------------------------------------------------------
         ifdo=.false.
         return
       endif
-
+     
       call rzero(pts,npts*ndim)
       do j=1,ndim 
         pts(1,j)=pt1(j)
@@ -92,7 +92,10 @@ c-----------------------------------------------------------------------
       endif
 
       if(nfld.gt.0) then
-        call blank(fname,132)
+
+        if(nid.ne.0) npts=0
+
+        call blank(fname,141)
         call blank(ftail,9)
         if(iplot.lt.10) then
           write(ftail,'(a,i1,a)') ".0000",iplot,".dat"

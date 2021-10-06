@@ -777,6 +777,33 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      real function bcID_area(iID)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+
+      integer iID
+
+      integer f,e
+      real Abc,dA
+      real glsum
+
+      Abc=0.0
+
+      do 10 e=1,nelt
+      do 10 f=1,ndim*2
+        if(boundaryID(f,e).eq.iID) then
+          call surface_area(dA,e,f)
+          Abc=Abc+dA
+        endif
+ 10   continue
+      Abc=glsum(Abc,1)
+
+      bcID_area = Abc
+
+      return
+      end
+c-----------------------------------------------------------------------
       real function bc_flux_average(phi,bca,ifld)
       implicit none
       include 'SIZE'
