@@ -782,6 +782,7 @@ c-----------------------------------------------------------------------
       implicit none
       include 'SIZE'
       include 'INPUT'
+      include 'GEOM'
 
       integer iID
 
