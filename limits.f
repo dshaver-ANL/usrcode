@@ -220,7 +220,6 @@ C     Now do the thing
         ifgrad=.true.
         do isd=1,2*ndim
           if(cbc(isd,e,1).eq.'W  ')then
-c           estrd=(e-1)*lx1*ly1*lz1
             if(ifgrad)then
               call gradm11(gradu(1,1,1,1,1)
      &                    ,gradu(1,1,1,1,2)
@@ -253,11 +252,9 @@ c           estrd=(e-1)*lx1*ly1*lz1
                 elseif(isd.eq.5) then
                   kw=1
                 else
-                  kw=lx1
+                  kw=lz1
                 endif
                 call getSnormal(norm,iw,jw,kw,isd,e)
-c               ipt=i +(j -1)*lx1+(k -1)*lx1*ly1
-c               wpt=iw+(jw-1)*lx1+(kw-1)*lx1*ly1
 
                 mu=vdiff(iw,jw,kw,e,1)
                 rho=vtrans(iw,jw,kw,e,1)
