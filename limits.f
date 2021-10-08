@@ -136,9 +136,10 @@ C
 
       character*15 pname
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
-      integer ipt,wpt,estrd,isd,ifld
+      integer isd,ifld
+c     integer estrd,ipt,wpt
       real msk(lx1,ly1,lz1,lelv)
-      real gradu(lx1*ly1*lz1,3,3),wd(1)
+      real gradu(lx1,ly1,lz1,3,3),wd(lx1,ly1,lz1,lelv)
       real tau(3),norm(3),vsca,tauw
       real utau,rho,mu,lambda,cp,Pra,yp,tl,psp,Sc(ldimt-1)
       real ypmin,ypmax,ypave,vol,utmin,utmax,utave,tlmin,tlmax,tlave
@@ -165,7 +166,7 @@ C       set flags for values to calculate and print
         endif
 
 C       build the mask  (this mask ignores some points which maybe important... 
-        call rone(msk,nx1*ny1*nz1*nelv)    ! need to look at it more closely)
+        call rone(msk,lx1*ly1*lz1*nelv)    ! need to look at it more closely)
         do e=1,nelv
           do isd=1,2*ndim
             if(cbc(isd,e,1).eq.'W  ') then
@@ -192,7 +193,7 @@ C       build the mask  (this mask ignores some points which maybe important...
             endif
           enddo
         enddo
-        call dssum(msk,nx1,ny1,nz1) !for elements with edges but not faces along a wall
+        call dssum(msk,lx1,ly1,lz1) !for elements with edges but not faces along a wall
       endif
 
 C     initialize the variables AFTER the flags are set
@@ -219,12 +220,18 @@ C     Now do the thing
         ifgrad=.true.
         do isd=1,2*ndim
           if(cbc(isd,e,1).eq.'W  ')then
-            estrd=(e-1)*nx1*ny1*nz1
+c           estrd=(e-1)*lx1*ly1*lz1
             if(ifgrad)then
-              call gradm11(gradu(1,1,1),gradu(1,1,2),gradu(1,1,3),vx,e)
-              call gradm11(gradu(1,2,1),gradu(1,2,2),gradu(1,2,3),vy,e)
+              call gradm11(gradu(1,1,1,1,1)
+     &                    ,gradu(1,1,1,1,2)
+     &                    ,gradu(1,1,1,1,3),vx,e)
+              call gradm11(gradu(1,1,1,2,1)
+     &                    ,gradu(1,1,1,2,2)
+     &                    ,gradu(1,1,1,2,3),vy,e)
               if(if3d)
-     &         call gradm11(gradu(1,3,1),gradu(1,3,2),gradu(1,3,3),vz,e)
+     &          call gradm11(gradu(1,1,1,3,1)
+     &                      ,gradu(1,1,1,3,2)
+     &                      ,gradu(1,1,1,3,3),vz,e)
               ifgrad=.false.
             endif
             call backpts(i0,i1,j0,j1,k0,k1,isd)
@@ -238,19 +245,19 @@ C     Now do the thing
                 if    (isd.eq.1) then
                   jw=1
                 elseif(isd.eq.2) then
-                  iw=nx1
+                  iw=lx1
                 elseif(isd.eq.3) then
-                  jw=ny1
+                  jw=ly1
                 elseif(isd.eq.4) then
                   iw=1
                 elseif(isd.eq.5) then
                   kw=1
                 else
-                  kw=nx1
+                  kw=lx1
                 endif
                 call getSnormal(norm,iw,jw,kw,isd,e)
-                ipt=i +(j -1)*nx1+(k -1)*nx1*ny1
-                wpt=iw+(jw-1)*nx1+(kw-1)*nx1*ny1
+c               ipt=i +(j -1)*lx1+(k -1)*lx1*ly1
+c               wpt=iw+(jw-1)*lx1+(kw-1)*lx1*ly1
 
                 mu=vdiff(iw,jw,kw,e,1)
                 rho=vtrans(iw,jw,kw,e,1)
@@ -270,8 +277,8 @@ C     Now do the thing
                 do i2=1,ldim
                 tau(i2)=0.0
                   do j2=1,ldim
-                    tau(i2)=tau(i2)+
-     &                   mu*(gradu(wpt,i2,j2)+gradu(wpt,j2,i2))*norm(j2)
+                    tau(i2)=tau(i2)+mu*norm(j2)*
+     &                     (gradu(iw,jw,kw,i2,j2)+gradu(iw,jw,kw,j2,i2))
                   enddo
                 enddo
 
@@ -286,7 +293,7 @@ C     Now do the thing
                 enddo
                 tauw=sqrt(tauw)
                 utau=sqrt(tauw/rho)
-                yp=wd(ipt+estrd)*utau*rho/mu
+                yp=wd(i,j,k,e)*utau*rho/mu
                 ypmin=min(ypmin,yp)
                 ypmax=max(ypmax,yp)
                 ypave=ypave+yp*bm1(i,j,k,e)
