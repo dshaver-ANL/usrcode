@@ -196,19 +196,19 @@ C       build the mask  (this mask ignores some points which maybe important...
       endif
 
 C     initialize the variables AFTER the flags are set
-      ypmin=1.0d30
-      ypmax=-1.0d30
+      ypmin=1.0e10
+      ypmax=-1.0e10
       ypave=0.0
-      utmin=1.0d30
-      utmax=-1.0d30
+      utmin=1.0e10
+      utmax=-1.0e10
       utave=0.0
-      tlmin=1.0e30
-      tlmax=-1.0e30
+      tlmin=1.0e10
+      tlmax=-1.0e10
       tlave=0.0
       do ifld=1,ldimt-1
         if(ifpsp(ifld))then
-          spmin(ifld)=1.0e30
-          spmax(ifld)=-1.0e30
+          spmin(ifld)=1.0e10
+          spmax(ifld)=-1.0e10
           spave(ifld)=0.0
         endif
       enddo
