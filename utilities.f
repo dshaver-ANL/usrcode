@@ -238,9 +238,9 @@ C-----------------------------------------------------------------------
       end
 C-----------------------------------------------------------------------
       subroutine get_wall_distance(wd,itype)
-      include 'SIZE'
-
       implicit none
+
+      include 'SIZE'
 
       integer icalled
       data icalled /0/
@@ -254,7 +254,7 @@ C-----------------------------------------------------------------------
       real w5(lx1*ly1*lz1*lelv)
       common /SCRNS/ w1,w2,w3,w4,w5
 
-      integer n
+      integer n,itype
       real wd0(lx1,ly1,lz1,lelv)
       common /walldist0/ wd0
 
@@ -839,7 +839,7 @@ c-----------------------------------------------------------------------
       phibc=0.0
       AA=0.0
 
-      do e=1,nelt
+      do e=1,nelv
         do f=1,ndim*2
           if(cbc(f,e,ifld).eq.bca) then
             call surface_flux2(dphi,phi,e,f)
