@@ -238,7 +238,13 @@ C-----------------------------------------------------------------------
       end
 C-----------------------------------------------------------------------
       subroutine get_wall_distance(wd,itype)
+      implicit none
+
       include 'SIZE'
+
+      integer icalled
+      data icalled /0/
+      save icalled
 
       real wd(*)
       real w1(lx1*ly1*lz1*lelv)
@@ -248,14 +254,24 @@ C-----------------------------------------------------------------------
       real w5(lx1*ly1*lz1*lelv)
       common /SCRNS/ w1,w2,w3,w4,w5
 
-      if(itype.eq.1) then
-        call cheap_dist(wd,1,'W  ')
-      elseif(itype.eq.2) then
-        call distf(wd,1,'W  ',w1,w2,w3,w4,w5)
-      else
-        if(nio.eq.0) write(*,*) 
+      integer n,itype
+      real wd0(lx1,ly1,lz1,lelv)
+      common /walldist0/ wd0
+
+      if(icalled.eq.0) then
+        if(itype.eq.1) then
+          call cheap_dist(wd0,1,'W  ')
+        elseif(itype.eq.2) then
+          call distf(wd0,1,'W  ',w1,w2,w3,w4,w5)
+        else
+          if(nio.eq.0) write(*,*) 
      &           "Error in get_wall_distance, unsupported distance type"
+        endif
+        icalled = 1
       endif
+
+      n=lx1*ly1*lz1*nelv
+      call copy(wd,wd0,n)
 
       return
       end
@@ -823,7 +839,7 @@ c-----------------------------------------------------------------------
       phibc=0.0
       AA=0.0
 
-      do e=1,nelt
+      do e=1,nelv
         do f=1,ndim*2
           if(cbc(f,e,ifld).eq.bca) then
             call surface_flux2(dphi,phi,e,f)
