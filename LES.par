@@ -10,9 +10,9 @@ filterWeight = 0.05
 
 [PRESSURE]
 residualTol = 1.0e-6
-residaulProj = yes
+residualProj = yes
 
 [VELOCITY]
 viscosity = -5.0e4
 density = 1.0
-residualtTol = 1.0e-8
+residualTol = 1.0e-8
