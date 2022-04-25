@@ -1542,3 +1542,27 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine convertvel_rtz
+      include 'SIZE'
+      include 'TOTAL'
+
+      n=lx1*ly1*lz1*nelv
+
+      if(nio.eq.0) write(6,'(a)') 
+     &                    "   converting velocity to radial coordinates"
+
+      do i=1,n
+        xx=xm1(i,1,1,1)
+        yy=ym1(i,1,1,1)
+        tht=atan2(yy,xx)
+        ux=vx(i,1,1,1)
+        uy=vy(i,1,1,1)
+        ur=ux*cos(tht)+uy*sin(tht)
+        ut=-ux*sin(tht)+uy*cos(tht)
+        vx(i,1,1,1)=ur
+        vy(i,1,1,1)=ut
+      enddo
+
+      return
+      end
+C-----------------------------------------------------------------------

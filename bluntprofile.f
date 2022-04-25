@@ -1,5 +1,5 @@
 c-----------------------------------------------------------------------
-      subroutine bluntprofile_setup(wdin)
+      subroutine bluntprofile_setup(wdin,trptin)
       implicit none
       include 'SIZE'
       include 'TOTAL'
@@ -8,12 +8,11 @@ c-----------------------------------------------------------------------
 
       integer iel,ifc,i,j,k,i0,i1,j0,j1,k0,k1,ia
       real fact,aa,term,glsum,bc_max
-      real factor,wdmax,trpt
+      real factor,wdmax,trpt,trptin
       common /bvel/ factor,wdmax,trpt
 
       wdmax=bc_max(wdin,'v  ',1)
-
-      trpt=0.05
+      trpt = trptin
 
       factor = 0.0
       aa = 0.0
@@ -42,6 +41,7 @@ c-----------------------------------------------------------------------
       factor=aa/factor
 
       return
+      end
 c-----------------------------------------------------------------------
       real function blunt_vel(vel,dist)
       implicit none
