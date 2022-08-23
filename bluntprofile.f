@@ -11,6 +11,11 @@ c-----------------------------------------------------------------------
       real factor,wdmax,trpt,trptin
       common /bvel/ factor,wdmax,trpt
 
+      character*3 cb3
+      character cb1(3)
+
+      equivalence (cb3,cb1(3))
+
       wdmax=bc_max(wdin,'v  ',1)
       trpt = trptin
 
@@ -18,7 +23,8 @@ c-----------------------------------------------------------------------
       aa = 0.0
       do 10 iel = 1,nelv
       do 10 ifc = 1,2*ldim
-        if(cbc(ifc,iel,1).eq.'v  ')then
+        cb3=cbc(ifc,iel,1)
+        if(cb1(1).eq.'v')then
           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
           ia = 0
           do 20 k=k0,k1
