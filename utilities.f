@@ -97,7 +97,7 @@ C-----------------------------------------------------------------------
       integer wcnt(ldimt1),symcnt(ldimt1),ocnt(ldimt1)
       integer tcnt(ldimt1),fcnt(ldimt1),axicnt(ldimt1)
       integer inscnt(ldimt1),pcnt(ldimt1),othcnt(ldimt1)
-      integer vcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
+      integer vcnt(ldimt1),vlcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
       integer mtrcnt(ldimt1),prcnt(ldimt1),intcnt(ldimt1)
       integer vreacnt(ldimt1),treacnt(ldimt1),convcnt(ldimt1)
 
@@ -105,6 +105,7 @@ C-----------------------------------------------------------------------
       call izero(trcnt,ldimt1)
       call izero(mtrcnt,ldimt1)
       call izero(vcnt,ldimt1)
+      call izero(vlcnt,ldimt1)
       call izero(vreacnt,ldimt1)
       call izero(symcnt,ldimt1)
       call izero(ocnt,ldimt1)
@@ -133,6 +134,8 @@ C-----------------------------------------------------------------------
             mtrcnt(ifld)=mtrcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'v  ')then
             vcnt(ifld)=vcnt(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'vl ')then
+            vlcnt(ifld)=vlcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'V  ')then
             vreacnt(ifld)=vreacnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'t  ')then
@@ -173,6 +176,7 @@ c           endif
         trcnt(ifld)=iglsum(trcnt(ifld),1)
         mtrcnt(ifld)=iglsum(mtrcnt(ifld),1)
         vcnt(ifld)=iglsum(vcnt(ifld),1)
+        vlcnt(ifld)=iglsum(vlcnt(ifld),1)
         vreacnt(ifld)=iglsum(vreacnt(ifld),1)
         tcnt(ifld)=iglsum(tcnt(ifld),1)
         treacnt(ifld)=iglsum(treacnt(ifld),1)
@@ -200,6 +204,7 @@ c           endif
           if(mtrcnt(ifld).gt.0)write(*,256)'Mixed Traction'
      &                                                   ,mtrcnt(ifld)
           if(vcnt(ifld).gt.0)write(*,256)'Velocity',vcnt(ifld)
+          if(vlcnt(ifld).gt.0)write(*,256)'Velocity (local)',vlcnt(ifld)
           if(vreacnt(ifld).gt.0)write(*,256)'Velocity (REA)',
      &                                                   vreacnt(ifld)
           if(tcnt(ifld).gt.0)write(*,256)'Dirichlet',tcnt(ifld)
