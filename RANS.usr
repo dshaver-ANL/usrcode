@@ -1,0 +1,240 @@
+c-----------------------------------------------------------------------
+c  nek5000 user-file template
+c
+c  user specified routines:
+c     - uservp  : variable properties
+c     - userf   : local acceleration term for fluid
+c     - userq   : local source term for scalars
+c     - userbc  : boundary conditions
+c     - useric  : initial conditions
+c     - userchk : general purpose routine for checking errors etc.
+c     - userqtl : thermal divergence for lowMach number flows 
+c     - usrdat  : modify element vertices 
+c     - usrdat2 : modify mesh coordinates
+c     - usrdat3 : general purpose routine for initialization
+c     
+c-----------------------------------------------------------------------
+      include "experimental/rans_komg.f"
+      include "/home/dshaver/NEKSOURCE/usrcode/limits.f"
+      include "/home/dshaver/NEKSOURCE/usrcode/utilities.f"
+      include "/home/dshaver/NEKSOURCE/usrcode/blunt_profile.f"
+c-----------------------------------------------------------------------
+      subroutine uservp(ix,iy,iz,eg) ! set variable properties
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer ix,iy,iz,e,eg
+      real rans_mut,rans_mutsk,rans_mutso,rans_turbPrandtl
+      real mu_t,Pr_t
+
+      e = gllel(eg)
+
+      Pr_t=rans_turbPrandtl()
+      mu_t=rans_mut(ix,iy,iz,e)
+
+      if(ifield.eq.1) then
+        t(ix,iy,iz,e,4)=mu_t/cpfld(ifield,1) !store eddy viscosity for post processing
+        udiff = cpfld(ifield,1)+mu_t
+        utrans = cpfld(ifield,2)
+      elseif(ifield.eq.2) then
+        udiff = cpfld(ifield,1)+mu_t*cpfld(ifield,2)/(Pr_t*cpfld(1,2))
+        utrans = cpfld(ifield,2)
+      elseif(ifield.eq.3) then !use rho and mu from field 1
+        udiff = cpfld(1,1)+rans_mutsk(ix,iy,iz,e)
+        utrans = cpfld(1,2)
+      elseif(ifield.eq.4) then !use rho and mu from field 1
+        udiff = cpfld(1,1)+rans_mutso(ix,iy,iz,e)
+        utrans = cpfld(1,2)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf(ix,iy,iz,eg) ! set acceleration term
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+c
+      integer ix,iy,iz,e,eg
+
+c     e = gllel(eg)
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq(ix,iy,iz,eg) ! set source term
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer ix,iy,iz,e,eg
+      real rans_kSrc,rans_omgSrc
+      real rans_kDiag,rans_omgDiag
+
+      e = gllel(eg)
+
+      if(ifield.eq.3) then
+        qvol = rans_kSrc(ix,iy,iz,e)
+        avol = rans_kDiag(ix,iy,iz,e)
+      elseif(ifield.eq.4) then
+        qvol = rans_omgSrc(ix,iy,iz,e)
+        avol = rans_omgDiag(ix,iy,iz,e)
+      else
+        qvol = 0.0
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc(ix,iy,iz,iside,eg) ! set up boundary conditions
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+c     NOTE ::: This subroutine MAY NOT be called by every process
+c
+      integer ix,iy,iz,iside,e,eg
+    
+C     U, TKE, and Omg are all zero on the wall 
+      ux   = 0.0
+      uy   = 0.0
+      uz   = 0.0
+      temp = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric(ix,iy,iz,eg) ! set up initial conditions
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer ix,iy,iz,e,eg
+
+      e = gllel(eg)
+
+      ux   = 1.0
+      uy   = 0.0
+      uz   = 0.0
+      temp = 0.0
+
+      if(ifield.eq.3) temp = 0.01
+      if(ifield.eq.4) temp = 0.2
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk()
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userqtl ! Set thermal divergence
+
+      call userqtl_scig 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat()   ! This routine to modify element vertices
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+C     enforce constant average velocity
+      param(54) = -1
+      param(55) = 1.0
+
+c     suppress runtime statistics
+      param(120) = nsteps
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2()  ! This routine to modify mesh coordinates
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real wd
+      common /walldist/ wd(lx1,ly1,lz1,lelv)
+
+      integer n,iel,ifc,id_face
+      real xmin,xmax,ymin,ymax,scaley,scalex
+      real glmin,glmax
+
+      integer ifld_k,ifld_t,m_id,w_id
+      real coeffs(30) !array for passing custom coeffs to RANS model
+      logical ifcoeffs !flag to use custom or default coeffs
+
+      n=nx1*ny1*nz1*nelv
+
+C     set BCs for velocity and temperature for 3rd party mesh
+C     tke and omega/tau are handled by rans_init
+C     do this BEFORE calling rans_init
+
+c     do iel=1,nelv
+c     do ifc=1,2*ndim
+c       id_face = boundaryID(ifc,iel)
+c       if (id_face.eq.1) then        ! dirichlet (inlet)  BCs
+c          cbc(ifc,iel,1) = 'v  '
+c          cbc(ifc,iel,2) = 't  '
+c       elseif (id_face.eq.2) then    ! Wall / heat flux BCs
+c          cbc(ifc,iel,1) = 'W  '
+c          cbc(ifc,iel,2) = 'f  '
+c       elseif (id_face.eq.3) then    ! Outlet BCs
+c          cbc(ifc,iel,1) = 'O  '
+c          cbc(ifc,iel,2) = 'I  '
+c       endif
+c     enddo
+c     enddo
+
+
+C     Setup RANS model, this MUST be done in usrdat2
+
+      ifld_k = 3         !field number for tke, t(1,1,1,1,ifld_k-1)
+      ifld_t = 4         !field number for omega/tau, t(1,1,1,1,ifld_t-1)
+      ifcoeffs = .false. !set to true to pass custom coefficients
+
+C     Available models:
+c     m_id = 0 !regularized standard k-omega
+c     m_id = 1 !regularized low-Re k-omega
+c     m_id = 2 !regularized standard k-omega SST
+c     m_id = 3 !non-regularized standard k-omega (NOT SUPPORTED)
+      m_id = 4 !standard k-tau
+c     m_id = 5 !low-Re k-tau
+
+C     Wall distance function:
+c     w_id = 0 ! user specified
+c     w_id = 1 ! cheap_dist (path to wall, may work better for periodic boundaries)
+      w_id = 2 ! distf (coordinate difference, provides smoother function)
+
+      call rans_init(ifld_k,ifld_t,ifcoeffs,coeffs,w_id,wd,m_id)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3()
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+C-----------------------------------------------------------------------
