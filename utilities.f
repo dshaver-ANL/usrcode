@@ -1571,3 +1571,61 @@ c-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine cfill_face(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*)
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        phi(i,j,k,iel) = cc
+ 100  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine cfill_rface(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*)
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facindr(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        phi(i,j,k,iel) = cc
+ 100  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine cadd_face(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*),ph0
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        ph0 = phi(i,j,k,iel)
+        phi(i,j,k,iel) = ph0+cc
+ 100  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
