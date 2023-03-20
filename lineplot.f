@@ -44,7 +44,7 @@ c-----------------------------------------------------------------------
         return
       endif
      
-      call rzero(pts,npts*ndim)
+      call rzero(pts,lhis*3) !zero the entire array
       do j=1,ndim 
         pts(1,j)=pt1(j)
         dx=(pt2(j)-pt1(j))/(real(npts-1))
