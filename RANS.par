@@ -1,0 +1,32 @@
+#Nek5000 parameter file
+[GENERAL]
+#startFrom = restart.f00000
+numSteps = 50000
+writeInterval = 5000
+dt = 2.5e-4
+
+[PROBLEMTYPE]
+variableProperties = yes
+stressFormulation = yes
+
+[PRESSURE]
+residualTol = 1.0e-4
+residualProj = yes
+
+[VELOCITY]
+viscosity = -5.0e4
+density = 1.0
+residualTol = 1.0e-6
+
+[SCALAR01]
+diffusivity = -1.0
+density = 1.0
+residualTol = 1.0e-6
+
+[SCALAR03]
+diffusivity = -1.0
+density = 1.0
+residualTol = 1.0e-6
+
+[SCALAR04]
+solver = none
