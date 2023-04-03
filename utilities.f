@@ -257,17 +257,16 @@ C-----------------------------------------------------------------------
       real w3(lx1*ly1*lz1*lelv)
       real w4(lx1*ly1*lz1*lelv)
       real w5(lx1*ly1*lz1*lelv)
-      common /SCRNS/ w1,w2,w3,w4,w5
+      real w6(lx1*ly1*lz1*lelv)
+      common /SCRNS/ w1,w2,w3,w4,w5,w6
 
       integer n,itype
-      real wd0(lx1,ly1,lz1,lelv)
-      common /walldist0/ wd0
 
       if(icalled.eq.0) then
         if(itype.eq.1) then
-          call cheap_dist(wd0,1,'W  ')
+          call cheap_dist(w1,1,'W  ')
         elseif(itype.eq.2) then
-          call distf(wd0,1,'W  ',w1,w2,w3,w4,w5)
+          call distf(w1,1,'W  ',w2,w3,w4,w5,w6)
         else
           if(nio.eq.0) write(*,*) 
      &           "Error in get_wall_distance, unsupported distance type"
@@ -276,7 +275,7 @@ C-----------------------------------------------------------------------
       endif
 
       n=lx1*ly1*lz1*nelv
-      call copy(wd,wd0,n)
+      call copy(wd,w1,n)
 
       return
       end
