@@ -267,17 +267,16 @@ C-----------------------------------------------------------------------
       real w3(lx1*ly1*lz1*lelv)
       real w4(lx1*ly1*lz1*lelv)
       real w5(lx1*ly1*lz1*lelv)
-      common /SCRNS/ w1,w2,w3,w4,w5
+      real w6(lx1*ly1*lz1*lelv)
+      common /SCRNS/ w1,w2,w3,w4,w5,w6
 
       integer n,itype
-      real wd0(lx1,ly1,lz1,lelv)
-      common /walldist0/ wd0
 
       if(icalled.eq.0) then
         if(itype.eq.1) then
-          call cheap_dist(wd0,1,'W  ')
+          call cheap_dist(w1,1,'W  ')
         elseif(itype.eq.2) then
-          call distf(wd0,1,'W  ',w1,w2,w3,w4,w5)
+          call distf(w1,1,'W  ',w2,w3,w4,w5,w6)
         else
           if(nio.eq.0) write(*,*) 
      &           "Error in get_wall_distance, unsupported distance type"
@@ -286,7 +285,7 @@ C-----------------------------------------------------------------------
       endif
 
       n=lx1*ly1*lz1*nelv
-      call copy(wd,wd0,n)
+      call copy(wd,w1,n)
 
       return
       end
@@ -1068,19 +1067,47 @@ c-----------------------------------------------------------------------
       integer ifld
       real phi(lx1,ly1,lz1,1)
 
-      integer ie,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
+      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
  
       n=lx1*ly1*lz1*nelv
       call rzero(phi,n)
 
-      do 10 ie=1,nelt
+      do 10 iel=1,nelt
       do 10 ifc=1,ndim*2
-        if(cbc(ifc,ie,ifld).eq.bcc) then
+        if(cbc(ifc,iel,ifld).eq.bcc) then
           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
           do 20 k=k0,k1
           do 20 j=j0,j1
           do 20 i=i0,i1
-            phi(i,j,k,ie)=1.0
+            phi(i,j,k,iel)=1.0
+ 20       continue
+        endif
+ 10   continue
+ 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine flag_bid(bid,phi)
+      implicit none
+      include 'SIZE'
+      include 'GEOM'
+
+      integer bid
+      real phi(lx1,ly1,lz1,1)
+
+      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
+ 
+      n=lx1*ly1*lz1*nelv
+      call rzero(phi,n)
+
+      do 10 iel=1,nelt
+      do 10 ifc=1,ndim*2
+        if(BoundaryID(ifc,iel).eq.bid) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            phi(i,j,k,iel)=1.0
  20       continue
         endif
  10   continue
@@ -1306,6 +1333,54 @@ c-----------------------------------------------------------------------
       enddo
 
       call prepost (.true.,'msh')
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine dumpscalars(nsca)
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer i,nsca
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.false.
+      do i=1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      if(nsca.ge.1) ifto=.true.
+      do i=1,nsca-1
+        ifpsco(i)=.true.
+      enddo
+      do i=nsca,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      call prepost (.true.,'sca')
 
       ifxyo = ifxyo_s
       ifpo = ifpo_s
