@@ -8,33 +8,43 @@ C
       include 'SIZE'
       include 'TOTAL'
 
-      real phi(1),norm(3),pt(3),eps
+      real phi(lx1*ly1*lz1,1),norm(3),pt(3),eps,phi_ext
+      real dpdx(lx1*ly1*lz1)
+      real dpdy(lx1*ly1*lz1)
+      real dpdz(lx1*ly1*lz1)
       real aa,bb,cc,dd,w1,w2,x0,y0,z0,r0,rr,del,xsa,glsum
 
-      integer i,j,k,n
+      integer e,i,j,k,n
 
-      n=nx1*ny1*nz1*nelv
+      n=lx1*ly1*lz1
 
-      aa=norm(1)
-      bb=norm(2) 
+!     make sure norm is a unit vector
+      dd=(norm(1)**2+norm(2)**2+norm(3)**2)
+      if(dd.gt.0) dd=sqrt(dd)
+      aa=norm(1)/dd
+      bb=norm(2)/dd
       cc=0.0
-      if(if3d) cc=norm(3)
-      dd=-1.0*(aa*pt(1)+bb*pt(2)+cc*pt(3))
+      if(if3d) cc=norm(3)/dd
+
       w1=0.0
       w2=0.0
-      do i=1,n
-        x0=xm1(i,1,1,1)
-        y0=ym1(i,1,1,1)
-        z0=zm1(i,1,1,1)
-        r0=(aa*x0+bb*y0+cc*z0+dd)/sqrt(aa**2+bb**2+cc**2)
-        rr=min(2.0,abs(r0)*2.0/eps)
-        if(rr.gt.1.0) then
-          del = 1.0/8.0*(5.0-2.0*rr-sqrt(-7.0+12.0*rr-4.0*rr**2))
-        else 
-          del = 1.0/8.0*(3.0-2.0*rr+sqrt( 1.0+ 4.0*rr-4.0*rr**2))
-        endif
-        w1=w1+phi(i)*bm1(i,1,1,1)*del
-        w2=w2+bm1(i,1,1,1)*del
+      do e=1,nelv
+        call gradm11(dpdx,dpdy,dpdz,phi,e)
+        do i=1,n
+          x0=xm1(i,1,1,e)
+          y0=ym1(i,1,1,e)
+          z0=zm1(i,1,1,e)
+          r0=x0-pt(1)+y0-pt(2)+z0-pt(3) !signed distance to plane
+          rr=min(2.0,abs(r0)*2.0/eps)
+          phi_ext=phi(i,e)-r0*(aa*dpdx(i)+bb*dpdy(i)+cc*dpdz(i)) !1st order extrapolation to the plane
+          if(rr.gt.1.0) then
+            del = 1.0/8.0*(5.0-2.0*rr-sqrt(-7.0+12.0*rr-4.0*rr**2))
+          else 
+            del = 1.0/8.0*(3.0-2.0*rr+sqrt( 1.0+ 4.0*rr-4.0*rr**2))
+          endif
+          w1=w1+phi_ext*bm1(i,1,1,e)*del
+          w2=w2+bm1(i,1,1,e)*del
+        enddo
       enddo
       xsa=glsum(w2,1)
       planar_ave_m1 = glsum(w1,1)/max(xsa,1.0e-8)
