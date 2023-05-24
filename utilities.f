@@ -25,6 +25,7 @@ C
       bb=norm(2)/dd
       cc=0.0
       if(if3d) cc=norm(3)/dd
+      dd=-1.0*(aa*pt(1)+bb*pt(2)+cc*pt(3))
 
       w1=0.0
       w2=0.0
@@ -34,9 +35,9 @@ C
           x0=xm1(i,1,1,e)
           y0=ym1(i,1,1,e)
           z0=zm1(i,1,1,e)
-          r0=x0-pt(1)+y0-pt(2)+z0-pt(3) !signed distance to plane
+          r0=aa*(x0-pt(1))+bb*(y0-pt(2))+cc*(z0-pt(3)) !signed distance to plane
           rr=min(2.0,abs(r0)*2.0/eps)
-          phi_ext=phi(i,e)-r0*(aa*dpdx(i)+bb*dpdy(i)+cc*dpdz(i)) !1st order extrapolation to the plane
+          phi_ext=phi(i,e)+r0*(aa*dpdx(i)+bb*dpdy(i)+cc*dpdz(i)) !1st order extrapolation to the plane
           if(rr.gt.1.0) then
             del = 1.0/8.0*(5.0-2.0*rr-sqrt(-7.0+12.0*rr-4.0*rr**2))
           else 
