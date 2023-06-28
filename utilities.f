@@ -637,6 +637,7 @@ c-----------------------------------------------------------------------
       implicit none
       include 'SIZE'
       include 'INPUT'
+      include 'GEOM'
 
       character*3 bca
       integer ifld
