@@ -639,8 +639,7 @@ c-----------------------------------------------------------------------
       include 'INPUT'
       include 'GEOM'
 
-      character*3 bca
-      integer ifld
+      integer iID
       real phi(lx1*ly1*lz1*lelv)
 
       integer f,e
