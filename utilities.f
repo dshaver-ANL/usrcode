@@ -144,6 +144,60 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine set_wwpin_BCs(Nlay,pitch)
+      include 'SIZE'
+      include 'TOTAL'
+
+      real xxc(271),yyc(271)
+
+      logical iflag
+
+      radius = 0.5
+
+      ipin=1
+      Npin=1
+      xxc(1)=0.0
+      yyc(1)=0.0
+      do ilay=1,Nlay
+         Npin=Npin+6*(ilay-1)
+         if(ilay.gt.1) then
+          do j= 1,6
+            tht = (j-1)*pi/3.
+            do k= 1,(ilay-1)
+              ipin=ipin+1
+              xx=(ilay-1)*pitch-(k-1)*pitch*cos(pi/3.)
+              yy=(k-1)*pitch*sin(pi/3.)
+              xxc(ipin)= xx*cos(tht)-yy*sin(tht)
+              yyc(ipin)= xx*sin(tht)+yy*cos(tht)
+              if(nio.eq.0) write(*,*) ipin,xxc(ipin),yyc(ipin)
+            enddo
+          enddo
+        endif
+      enddo
+
+      do 10 ie=1,nelv
+      do 10 ic=1,2*ldim
+        iflag = .false.
+        cbc(ic,ie,2)=cbc(ic,ie,1)
+        if(cbc(ic,ie,1).eq.'W  ') then
+          cbc(ic,ie,2)='I  '
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ic)
+          do 20 ipin=1,Npin
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            xx=xm1(i,j,k,ie)-xxc(ipin)
+            yy=ym1(i,j,k,ie)-yyc(ipin)
+            dist=sqrt((xx)**2+(yy)**2)
+            if(abs(dist-radius).le.1.0e-4) iflag=.true.
+  20      continue
+        endif
+        if(iflag) cbc(ic,ie,2)='f  '
+  10  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
       real function get_nearest(loc,coord)
       include 'mpif.h'
       include 'SIZE'
