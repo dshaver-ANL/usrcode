@@ -660,7 +660,7 @@ c-----------------------------------------------------------------------
       Abc=glsum(Abc,1)
       phibc=glsum(phibc,1)/Abc
 
-      bc_average = phibc
+      bcID_average = phibc
 
       return
       end
