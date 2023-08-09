@@ -655,7 +655,8 @@ c     endif
       return
       end
 c-----------------------------------------------------------------------
-      real function bc_average(phi,bca,ifld)
+      real function bc_area_average(phi,bca,ifld)
+c     return the area-weighted average of scalar phi on BC bca
       implicit none
       include 'SIZE'
       include 'INPUT'
@@ -682,12 +683,13 @@ c-----------------------------------------------------------------------
       Abc=glsum(Abc,1)
       phibc=glsum(phibc,1)/Abc
 
-      bc_average = phibc
+      bc_area_average = phibc
 
       return
       end
 c-----------------------------------------------------------------------
-      real function bcID_average(phi,iID)
+      real function bcID_area_average(phi,iID)
+c     return the area-weighted average of scalar phi on boundary iID
       implicit none
       include 'SIZE'
       include 'INPUT'
@@ -714,12 +716,13 @@ c-----------------------------------------------------------------------
       Abc=glsum(Abc,1)
       phibc=glsum(phibc,1)/Abc
 
-      bcID_average = phibc
+      bcID_area_average = phibc
 
       return
       end
 c-----------------------------------------------------------------------
       real function bc_area(bca,ifld)
+c     return the total area of faces with BC bca
       implicit none
       include 'SIZE'
       include 'INPUT'
@@ -748,6 +751,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       real function bcID_area(iID)
+c     return the total area of faces with Boundary ID iID
       implicit none
       include 'SIZE'
       include 'INPUT'
@@ -776,6 +780,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       real function bc_flux_average(phi,bca,ifld)
+c     return the flux-weighted average of phi on BC bca
       implicit none
       include 'SIZE'
       include 'TOTAL'
@@ -810,33 +815,205 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      real function bc_max(phi,bca,ifld)
+      real function bcID_flux_average(phi,bid)
+c     return the flux-weighted average of phi on faces with boundary bid
       implicit none
       include 'SIZE'
-      include 'INPUT'
+      include 'TOTAL'
 
-      character*3 bca
-      integer ifld
-      real phi(lx1,ly1,lz1,1)
+      integer bid
+      real phi(lx1*ly1*lz1,lelv)
 
-      real glmax
+      integer f,e,lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+      real phibc,AA,dphi,dAA,w(lxyz)
+      real glsum
 
-      integer f,e,i,i0,i1,j,j0,j1,k,k0,k1
-      real bcmx
+      phibc=0.0
+      AA=0.0
 
-      do 10 e=1,nelt
-      do 10 f=1,ndim*2
-        if(cbc(f,e,ifld).eq.bca) then
-          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,f)
-          do 20 k=k0,k1
-          do 20 j=j0,j1
-          do 20 i=i0,i1
-            bcmx=max(bcmx,phi(i,j,k,e))
- 20       continue
+      do e=1,nelv
+      do f=1,ndim*2
+        if(BoundaryID(f,e).eq.bid) then
+          call surface_flux2(dphi,phi,e,f)
+          call surface_flux(dAA,vx,vy,vz,e,f,w)
+          phibc=phibc+dphi
+          AA=AA+dAA
         endif
- 10   continue
+      enddo
+      enddo
+      AA=glsum(AA,1)
+      phibc=glsum(phibc,1)/AA
 
-      bc_max = glmax(bcmx,1)
+      bcID_flux_average = phibc
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real function bc_totalflux(phi,ptrans,pdiff,bca,ifld)
+c     return the total flux through the faces with BC bca
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real phi(lx1*ly1*lz1,lelt)
+      real ptrans(lx1*ly1*lz1,lelt)
+      real pdiff(lx1*ly1*lz1,lelt)
+      integer ifld
+      character*3 bca
+
+      real face_advective_flux,face_diffusive_flux,glsum
+
+      real phibc
+      integer f,e
+
+      phibc=0.0
+      do e=1,nelv
+      do f=1,ldim*2
+        if(cbc(f,e,ifld).eq.bca) then
+          phibc=phibc+face_advective_flux(phi,ptrans,e,f)
+          phibc=phibc+face_diffusive_flux(phi,pdiff,e,f)
+        endif
+      enddo
+      enddo
+      phibc=glsum(phibc,1)
+
+      bc_totalflux = phibc
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real function bcID_totalflux(phi,ptrans,pdiff,bcid)
+c     return the total flux through the faces with boundaryID bcid
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real phi(lx1*ly1*lz1,lelt)
+      real ptrans(lx1*ly1*lz1,lelt)
+      real pdiff(lx1*ly1*lz1,lelt)
+      integer bcid
+
+      real face_advective_flux,face_diffusive_flux,glsum
+
+      real phibc
+      integer f,e
+
+      phibc=0.0
+      do e=1,nelv
+      do f=1,ndim*2
+        if(BoundaryID(f,e).eq.bcid) then
+          phibc=phibc+face_advective_flux(phi,ptrans,e,f)
+          phibc=phibc+face_diffusive_flux(phi,pdiff,e,f)
+        endif
+      enddo
+      enddo
+      phibc=glsum(phibc,1)
+
+      bcId_totalflux = phibc
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real function face_advective_flux(phi,ptrans,e,f)
+c     return the advective flux of scalar phi through face f of element e
+      implicit none
+      include 'SIZE'
+      include 'TOTAL' !probably just need SOLN and GEOM
+
+      integer lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real phi(lxyz,lelt)
+      real ptrans(lxyz,lelt)
+      integer e,f
+
+      real wkx(lxyz),wky(lxyz),wkz(lxyz),dphi,wkk(lxyz)
+      integer iface,js1,jf1,jskip1,js2,jf2,jskip2
+
+      call col3(wkx,vx(1,1,1,e),phi(1,e),lxyz)
+      call col3(wky,vy(1,1,1,e),phi(1,e),lxyz)
+      if(if3d) call col3(wkx,vz(1,1,1,e),phi(1,e),lxyz)
+
+      call col2(wkx,ptrans(1,e),lxyz)
+      call col2(wky,ptrans(1,e),lxyz)
+      if(if3d) call col2(wkz,ptrans(1,e),lxyz)
+
+      call surface_flux_local(dphi,wkx,wky,wkz,e,f,wkk)
+      face_advective_flux=dphi
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real function face_diffusive_flux(phi,pdiff,e,f)
+c     return the diffusive flux of scalar phi through face f of element e
+      implicit none
+      include 'SIZE'
+      include 'TOTAL' !probably just need SOLN and GEOM
+
+      integer lxyz
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real phi(lxyz,lelt)
+      real pdiff(lxyz,lelt)
+      integer e,f
+
+      real wkx(lxyz),wky(lxyz),wkz(lxyz),dphi,wkk(lxyz)
+
+      call gradm11(wkx,wky,wkz,phi,e)
+
+      call col2(wkx,pdiff(1,e),lxyz)
+      call col2(wky,pdiff(1,e),lxyz)
+      if(if3d) call col2(wkz,pdiff(1,e),lxyz)
+
+      call chsign(wkx,lxyz)
+      call chsign(wky,lxyz)
+      if(if3d) call chsign(wkz,lxyz)
+
+      call surface_flux_local(dphi,wkx,wky,wkz,e,f,wkk)
+      face_diffusive_flux=dphi
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine surface_flux_local(dq,qx,qy,qz,e,f,w)
+c     identical to surface_flux in navier5, but qx,qy,qz are only a single element
+      include 'SIZE'
+      include 'GEOM'
+      include 'INPUT'
+      include 'PARALLEL'
+      include 'TOPOL'
+      parameter (l=lx1*ly1*lz1)
+
+      real qx(l),qy(l),qz(l),w(lx1,ly1,lz1)
+      integer e,f
+
+      call           faccl3  (w,qx,unx(1,1,f,e),f)
+      call           faddcl3 (w,qy,uny(1,1,f,e),f)
+      if (if3d) call faddcl3 (w,qz,unz(1,1,f,e),f)
+
+      call dsset(lx1,ly1,lz1)
+      iface  = eface1(f)
+      js1    = skpdat(1,iface)
+      jf1    = skpdat(2,iface)
+      jskip1 = skpdat(3,iface)
+      js2    = skpdat(4,iface)
+      jf2    = skpdat(5,iface)
+      jskip2 = skpdat(6,iface)
+
+      dq = 0
+      i  = 0
+      do 100 j2=js2,jf2,jskip2
+      do 100 j1=js1,jf1,jskip1
+         i = i+1
+         dq    = dq + area(i,1,f,e)*w(j1,j2,1)
+  100 continue
 
       return
       end
