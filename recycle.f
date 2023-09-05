@@ -26,11 +26,12 @@ c     include 'NEKUSE'
 
 c     integer ix,iy,iz,ie,f,ieg
 c     ie = gllel(eg)
+c     real ux_recycle,uy_recycle,uz_recycle,temp_recycle
 
-c     ux=  uin_recycle(ix,iy,iz,ie)
-c     uy=  vin_recycle(ix,iy,iz,ie)
-c     uz=  win_recycle(ix,iy,iz,ie)
-c     temp=tin_recycle(ix,iy,iz,ie,ifield)
+c     ux = ux_recycle(ix,iy,iz,ie)
+c     uy = uy_recycle(ix,iy,iz,ie)
+c     uz = uz_recycle(ix,iy,iz,ie)
+c     temp = temp_recycle(ix,iy,iz,ie,ifield)
 
 c     return
 c     end
@@ -429,7 +430,7 @@ c       Rescale the flow to preserve mean flow rate
       return
       end
 C-----------------------------------------------------------------------
-      real function uin_recycle(ix,iy,iz,ie)
+      real function ux_recycle(ix,iy,iz,ie)
       implicit none
       include 'SIZE'
 
@@ -440,11 +441,11 @@ C-----------------------------------------------------------------------
      $              , win(lx1,ly1,lz1,lelv)
      $              , tin(lx1,ly1,lz1,lelv,ldimt) 
 
-      uin_recycle=uin(ix,iy,iz,ie)
+      ux_recycle=uin(ix,iy,iz,ie)
       return
       end
 C-----------------------------------------------------------------------
-      real function vin_recycle(ix,iy,iz,ie)
+      real function uy_recycle(ix,iy,iz,ie)
       implicit none
       include 'SIZE'
 
@@ -455,11 +456,11 @@ C-----------------------------------------------------------------------
      $              , win(lx1,ly1,lz1,lelv)
      $              , tin(lx1,ly1,lz1,lelv,ldimt) 
 
-      vin_recycle=vin(ix,iy,iz,ie)
+      uy_recycle=vin(ix,iy,iz,ie)
       return
       end
 C-----------------------------------------------------------------------
-      real function win_recycle(ix,iy,iz,ie)
+      real function uz_recycle(ix,iy,iz,ie)
       implicit none
       include 'SIZE'
 
@@ -470,11 +471,11 @@ C-----------------------------------------------------------------------
      $              , win(lx1,ly1,lz1,lelv)
      $              , tin(lx1,ly1,lz1,lelv,ldimt) 
 
-      win_recycle=win(ix,iy,iz,ie)
+      uz_recycle=win(ix,iy,iz,ie)
       return
       end
 C-----------------------------------------------------------------------
-      real function tin_recycle(ix,iy,iz,ie,ifield)
+      real function temp_recycle(ix,iy,iz,ie,ifield)
       implicit none
       include 'SIZE'
 
@@ -488,9 +489,9 @@ C-----------------------------------------------------------------------
       logical iffield
       common /lvelbc/ iffield(ldimt)
 
-      tin_recycle=0.0
+      temp_recycle=0.0
       if(ifield.lt.2) return
-      if(iffield(ifield-1)) tin_recycle=tin(ix,iy,iz,ie,ifield-1)
+      if(iffield(ifield-1)) temp_recycle=tin(ix,iy,iz,ie,ifield-1)
 
       return
       end
