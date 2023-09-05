@@ -1,67 +1,56 @@
 c-----------------------------------------------------------------------
 c     subroutine userdat
+c     implicit none
 c     include 'SIZE'
 c     include 'TOTAL'
 
+c     integer i
 c     logical iffield
 c     common /lvelbc/ iffield(ldimt) ! set to true to do recycling for temp/PSs
 
-c     data iffield /.false.*ldimt/
-
+c     do i=1,ldimt
+c       iffield(i)=.false.
+c     enddo
+c     iffield(1)=.true. ! recycle field 2 (temperature)
 c     iffield(2)=.true. ! recycle field 3 (scalar 1, ifield-1)
 c     iffield(3)=.true. ! recycle field 4 (scalar 2, ifield-1)
 
 c     return
 c     end
 c-----------------------------------------------------------------------
-c     subroutine userbc (i,j,k,f,eg)
+c     subroutine userbc (ix,iy,iz,f,ieg)
+c     implicit none
 c     include 'SIZE'
 c     include 'TOTAL'
 c     include 'NEKUSE'
 
-c     logical iffield
-c     common /lvelbc/ iffield(ldimt)
+c     integer ix,iy,iz,ie,f,ieg
+c     ie = gllel(eg)
 
-c     common /cvelbc/ uin(lx1,ly1,lz1,lelv)
-c    $              , vin(lx1,ly1,lz1,lelv)
-c    $              , win(lx1,ly1,lz1,lelv)
-c    $              , tin(lx1,ly1,lz1,lelt,ldimt)
-
-c     integer e,f,eg
-c     e = gllel(eg)
-
-c     ux=uin(i,j,k,e)
-c     uy=vin(i,j,k,e)
-c     uz=win(i,j,k,e)
-
-c     temp = 0.0
-c     if(iffield(ifield-1) temp=tin(i,j,k,e,ifield-1)
+c     ux=  uin_recycle(ix,iy,iz,ie)
+c     uy=  vin_recycle(ix,iy,iz,ie)
+c     uz=  win_recycle(ix,iy,iz,ie)
+c     temp=tin_recycle(ix,iy,iz,ie,ifield)
 
 c     return
 c     end
 c-----------------------------------------------------------------------
 c     subroutine userchk
+c     implicit none
 c     include 'SIZE'
 c     include 'TOTAL'
-c     parameter (lt=lx1*ly1*lz1*lelt)
-c     common /myoutflow / d(lt),w1(lt) 
+
 c     real dx,dy,dz,ubar,tbar
-
-c     integer icalld
-c     save    icalld
-c     data    icalld /0/
-
-c     integer e
-
-c     n=nx1*ny1*nz1*nelv
 
 c******** Recycling using Findpts ****************************
 
 c     dx=5.
 c     dy=0.
 c     dz=0.
-c     ubar = 1.0
-c     tbar = 0.0
+      !velocity and temperature are scaled to the mean inlet values below
+      !scalars are not rescaled
+c     ubar = 1.0  !mean inlet velocity
+c     tbar = 0.0  !mean inlet temperature
 c     call set_inflow_fpt(dx,dy,dz,ubar,tbar)
 
 c*************************************************************
@@ -436,6 +425,72 @@ c       Rescale the flow to preserve mean flow rate
           if(i.eq.1) call rescale_tinflow_fpt(tbar,i) !only temperature needs to be rescaled
         endif
       enddo
+
+      return
+      end
+C-----------------------------------------------------------------------
+      real function uin_recycle(ix,iy,iz,ie)
+      implicit none
+      include 'SIZE'
+
+      integer ix,iy,iz,ie
+      real uin,vin,win,tin
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt) 
+
+      uin_recycle=uin(ix,iy,iz,ie)
+      return
+      end
+C-----------------------------------------------------------------------
+      real function vin_recycle(ix,iy,iz,ie)
+      implicit none
+      include 'SIZE'
+
+      integer ix,iy,iz,ie
+      real uin,vin,win,tin
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt) 
+
+      vin_recycle=vin(ix,iy,iz,ie)
+      return
+      end
+C-----------------------------------------------------------------------
+      real function win_recycle(ix,iy,iz,ie)
+      implicit none
+      include 'SIZE'
+
+      integer ix,iy,iz,ie
+      real uin,vin,win,tin
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt) 
+
+      win_recycle=win(ix,iy,iz,ie)
+      return
+      end
+C-----------------------------------------------------------------------
+      real function tin_recycle(ix,iy,iz,ie,ifield)
+      implicit none
+      include 'SIZE'
+
+      integer ix,iy,iz,ie
+      real uin,vin,win,tin
+      common /cvelbc/ uin(lx1,ly1,lz1,lelv)
+     $              , vin(lx1,ly1,lz1,lelv)
+     $              , win(lx1,ly1,lz1,lelv)
+     $              , tin(lx1,ly1,lz1,lelv,ldimt) 
+
+      logical iffield
+      common /lvelbc/ iffield(ldimt)
+
+      tin_recycle=0.0
+      if(ifield.lt.2) return
+      if(iffield(ifield-1)) tin_recycle=tin(ix,iy,iz,ie,ifield-1)
 
       return
       end
