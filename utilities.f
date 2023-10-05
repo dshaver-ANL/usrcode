@@ -1203,13 +1203,13 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine flag_bid(bid,phi)
+      subroutine flag_bid(bid,phi,const)
       implicit none
       include 'SIZE'
       include 'GEOM'
 
       integer bid
-      real phi(lx1,ly1,lz1,1)
+      real phi(lx1,ly1,lz1,1),const
 
       integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
  
@@ -1223,7 +1223,7 @@ c-----------------------------------------------------------------------
           do 20 k=k0,k1
           do 20 j=j0,j1
           do 20 i=i0,i1
-            phi(i,j,k,iel)=1.0
+            phi(i,j,k,iel)=const
  20       continue
         endif
  10   continue
