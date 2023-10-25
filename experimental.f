@@ -18,7 +18,8 @@ c     fix left-handedness
 
 c     connectivity needs to be regenerated
       call gen_rea(2)
-      call exitt !
+      call dumpmesh('mir')
+      call exitti('mirroring done',1)
        
       return
       end 

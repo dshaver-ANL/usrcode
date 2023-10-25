@@ -189,10 +189,62 @@ C-----------------------------------------------------------------------
             xx=xm1(i,j,k,ie)-xxc(ipin)
             yy=ym1(i,j,k,ie)-yyc(ipin)
             dist=sqrt((xx)**2+(yy)**2)
-            if(abs(dist-radius).le.1.0e-4) iflag=.true.
+            if(abs(dist-radius).le.1.0e-3) iflag=.true.
   20      continue
         endif
         if(iflag) cbc(ic,ie,2)='f  '
+  10  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine set_wwpin_BCids(Nlay,pitch,iid,idn)
+      include 'SIZE'
+      include 'TOTAL'
+      
+      real xxc(271),yyc(271)
+
+      logical iflag
+
+      radius = 0.5
+
+      ipin=1
+      Npin=1
+      xxc(1)=0.0
+      yyc(1)=0.0
+      do ilay=1,Nlay
+         Npin=Npin+6*(ilay-1)
+         if(ilay.gt.1) then
+          do j= 1,6
+            tht = (j-1)*pi/3.
+            do k= 1,(ilay-1)
+              ipin=ipin+1
+              xx=(ilay-1)*pitch-(k-1)*pitch*cos(pi/3.)
+              yy=(k-1)*pitch*sin(pi/3.)
+              xxc(ipin)= xx*cos(tht)-yy*sin(tht)
+              yyc(ipin)= xx*sin(tht)+yy*cos(tht)
+              if(nio.eq.0) write(*,*) ipin,xxc(ipin),yyc(ipin)
+            enddo
+          enddo
+        endif
+      enddo
+
+      do 10 ie=1,nelv
+      do 10 ic=1,2*ldim
+        iflag = .false.
+        if(BoundaryID(ic,ie).eq.iid) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ic)
+          do 20 ipin=1,Npin
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            xx=xm1(i,j,k,ie)-xxc(ipin)
+            yy=ym1(i,j,k,ie)-yyc(ipin)
+            dist=sqrt((xx)**2+(yy)**2)
+            if(abs(dist-radius).le.1.0e-3) iflag=.true.
+  20      continue
+        endif
+        if(iflag) BoundaryID(ic,ie)=idn
   10  continue
 
       return
@@ -1208,17 +1260,19 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'GEOM'
 
-      integer bid
+      integer bid,iglsum
       real phi(lx1,ly1,lz1,1),const
 
-      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
+      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n,ict
  
       n=lx1*ly1*lz1*nelv
       call rzero(phi,n)
+      ict=0
 
       do 10 iel=1,nelt
       do 10 ifc=1,ndim*2
         if(BoundaryID(ifc,iel).eq.bid) then
+          ict=ict+1
           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
           do 20 k=k0,k1
           do 20 j=j0,j1
@@ -1227,6 +1281,8 @@ c-----------------------------------------------------------------------
  20       continue
         endif
  10   continue
+      n=iglsum(ict,1)
+      if(nio.eq.0) write(*,*)bid,n
  
       return
       end
@@ -1421,16 +1477,19 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dumpmesh
+      subroutine dumpmesh(na3)
 
       implicit none
 
       include 'SIZE'
       include 'TOTAL'
 
+      character*3 na3
       logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
 
       integer i
+
+      if(na3.eq.'   ') na3='msh'
 
       ifxyo_s = ifxyo
       ifpo_s = ifpo
@@ -1448,7 +1507,7 @@ c-----------------------------------------------------------------------
         ifpsco(i)=.false.
       enddo
 
-      call prepost (.true.,'msh')
+      call prepost (.true.,na3)
 
       ifxyo = ifxyo_s
       ifpo = ifpo_s
