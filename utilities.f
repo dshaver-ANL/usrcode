@@ -158,6 +158,10 @@ C-----------------------------------------------------------------------
       Npin=1
       xxc(1)=0.0
       yyc(1)=0.0
+      if(nio.eq.0) then
+        write(*,255) "pin","x","y"
+        write(*,256) ipin,xxc(ipin),yyc(ipin)
+      endif
       do ilay=1,Nlay
          Npin=Npin+6*(ilay-1)
          if(ilay.gt.1) then
@@ -169,11 +173,15 @@ C-----------------------------------------------------------------------
               yy=(k-1)*pitch*sin(pi/3.)
               xxc(ipin)= xx*cos(tht)-yy*sin(tht)
               yyc(ipin)= xx*sin(tht)+yy*cos(tht)
-              if(nio.eq.0) write(*,*) ipin,xxc(ipin),yyc(ipin)
+              if(nio.eq.0) write(*,256) ipin,xxc(ipin),yyc(ipin)
             enddo
           enddo
         endif
       enddo
+      if(nio.eq.0) write(*,*)
+
+ 255  format(a4,2a11)
+ 256  format(i4,2f11.6)
 
       do 10 ie=1,nelv
       do 10 ic=1,2*ldim
@@ -212,7 +220,10 @@ C-----------------------------------------------------------------------
       Npin=1
       xxc(1)=0.0
       yyc(1)=0.0
-      if(nio.eq.0) write(*,256) ipin,xxc(ipin),yyc(ipin)
+      if(nio.eq.0) then
+        write(*,255) "pin","x","y"
+        write(*,256) ipin,xxc(ipin),yyc(ipin)
+      endif
       do ilay=1,Nlay
          Npin=Npin+6*(ilay-1)
          if(ilay.gt.1) then
@@ -229,7 +240,10 @@ C-----------------------------------------------------------------------
           enddo
         endif
       enddo
- 256  format("i3,2f9.6")
+      if(nio.eq.0) write(*,*)
+
+ 255  format(a4,2a11)
+ 256  format(i4,2f11.6)
 
       do 10 ie=1,nelv
       do 10 ic=1,2*ldim
