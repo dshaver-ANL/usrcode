@@ -847,6 +847,25 @@ c
 c      return
 c      end
 c-----------------------------------------------------------------------
+      subroutine set_elist_zslice(elist,zz,eps)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real zz,eps
+      integer elist(*),i,j,n
+      n=lx1*ly1*lz1
+
+      call izero(elist,nelv)
+      do i=1,nelv
+      do j=1,n
+        if(abs(zz-zm1(j,1,1,i)).le.eps) elist(i)=1
+      enddo
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine my_mfo_outfld(elist,prefix)  ! muti-file output
 
       include 'SIZE'
