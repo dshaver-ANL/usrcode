@@ -23,6 +23,8 @@ c     connectivity needs to be regenerated
       return
       end 
 c-----------------------------------------------------------------------
+c     Yu-Hsiang's code below
+c-----------------------------------------------------------------------
       subroutine flip_elements
 c     This subroutine flip the elements from lhs to rhs
 c     Note that this is not the general fix for rhs_check.
