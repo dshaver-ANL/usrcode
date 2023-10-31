@@ -789,6 +789,37 @@ c     return the area-weighted average of scalar phi on boundary iID
       return
       end
 c-----------------------------------------------------------------------
+      real function bcID_area_integral(phi,iID)
+c     return the area-integral of scalar phi on boundary iID
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+      include 'GEOM'
+
+      integer iID
+      real phi(lx1*ly1*lz1*lelv)
+
+      integer f,e
+      real phibc,dphi,dA
+      real glsum
+
+      phibc=0.0
+      Abc=0.0
+
+      do 10 e=1,nelt
+      do 10 f=1,ndim*2
+        if(boundaryID(f,e).eq.iID.or.boundaryIDt(f,e).eq.iID) then
+          call surface_int(dphi,dA,phi,e,f)
+          phibc=phibc+dphi
+        endif
+ 10   continue
+      phibc=glsum(phibc,1)
+
+      bcID_area_integral = phibc
+
+      return
+      end
+c-----------------------------------------------------------------------
       real function bc_area(bca,ifld)
 c     return the total area of faces with BC bca
       implicit none
