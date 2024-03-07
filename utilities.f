@@ -1523,19 +1523,20 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dumpmesh(na3)
+      subroutine dumpmesh(na3in)
 
       implicit none
 
       include 'SIZE'
       include 'TOTAL'
 
-      character*3 na3
+      character*3 na3in,na3
       logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
 
       integer i
 
-      if(na3.eq.'   ') na3='msh'
+      na3='msh'
+      if(na3in.not..eq.'   ') na3=na3in
 
       ifxyo_s = ifxyo
       ifpo_s = ifpo
