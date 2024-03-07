@@ -804,7 +804,6 @@ c     return the area-integral of scalar phi on boundary iID
       real glsum
 
       phibc=0.0
-      Abc=0.0
 
       do 10 e=1,nelt
       do 10 f=1,ndim*2
