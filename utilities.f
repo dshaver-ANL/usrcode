@@ -1536,7 +1536,7 @@ c-----------------------------------------------------------------------
       integer i
 
       na3='msh'
-      if(na3in.not..eq.'   ') na3=na3in
+      if(na3in.ne.'   ') na3=na3in
 
       ifxyo_s = ifxyo
       ifpo_s = ifpo
