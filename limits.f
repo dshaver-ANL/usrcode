@@ -256,12 +256,12 @@ C     Now do the thing
                 endif
                 call getSnormal(norm,iw,jw,kw,isd,e)
 
-                mu=vdiff(iw,jw,kw,e,1)
-                rho=vtrans(iw,jw,kw,e,1)
+                mu=cpfld(1,1)
+                rho=cpfld(1,2)
                 Pra=1.0
                 if(iftl) then
-                  lambda=vdiff(iw,jw,kw,e,2)
-                  cp=vtrans(iw,jw,kw,e,2)/rho
+                  lambda=cpfld(2,1)
+                  cp=cpfld(2,2)/rho
                   Pra=cp*mu/lambda
                 endif
                 do ifld=3,ldimt+1
