@@ -365,6 +365,164 @@ C     Now do the thing
 
       return
       end
+C-----------------------------------------------------------------------
+      subroutine y_p_limitsRS(wd)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+C
+C     NOTE: min value should work if domain has internal corners
+C
+      logical ifdef,ifut,iftl,ifpsp(ldimt-1)
+      common /y_p_print/ ifut,iftl,ifpsp
+
+      character*15 pname
+      integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
+      integer isd,ifld
+c     integer estrd,ipt,wpt
+      real msk(lx1,ly1,lz1,lelv)
+      real gradu(lx1,ly1,lz1,3,3),wd(lx1,ly1,lz1,lelv)
+      real tau(3),norm(3),vsca,tauw
+      real utau,rho,mu,yp
+      real ypmin,ypmax,ypave,vol
+      real glmin,glmax,glsum
+      logical ifgrad, ifdid
+
+      data ifdid /.false./
+      save ifdid, msk
+
+C     do some initializations once
+      if(.not.ifdid)then
+        ifdid=.true.
+
+C       build the mask  (this mask ignores some points which maybe important... 
+        call rone(msk,lx1*ly1*lz1*nelv)    ! need to look at it more closely)
+        do e=1,nelv
+          do isd=1,2*ndim
+            if(cbc(isd,e,1).eq.'W  ') then
+              call backpts(i0,i1,j0,j1,k0,k1,isd)
+              do k=k0,k1
+              do j=j0,j1
+              do i=i0,i1
+                msk(i,j,k,e)=0.0
+              enddo
+              enddo
+              enddo
+            endif
+          enddo
+          do isd=1,2*ndim
+            if(cbc(isd,e,1).eq.'W  ') then
+              call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
+              do k=k0,k1
+              do j=j0,j1
+              do i=i0,i1
+                msk(i,j,k,e)=1.0
+              enddo
+              enddo
+              enddo
+            endif
+          enddo
+        enddo
+        call dssum(msk,lx1,ly1,lz1) !for elements with edges but not faces along a wall
+      endif
+
+C     initialize the variables AFTER the flags are set
+      ypmin=1.0e10
+      ypmax=-1.0e10
+      ypave=0.0
+      vol=0.0
+
+C     Now do the thing
+      do e=1,nelv
+        ifgrad=.true.
+        do isd=1,2*ndim
+          if(cbc(isd,e,1).eq.'W  ')then
+            if(ifgrad)then
+              call gradm11(gradu(1,1,1,1,1)
+     &                    ,gradu(1,1,1,1,2)
+     &                    ,gradu(1,1,1,1,3),vx,e)
+              call gradm11(gradu(1,1,1,2,1)
+     &                    ,gradu(1,1,1,2,2)
+     &                    ,gradu(1,1,1,2,3),vy,e)
+              if(if3d)
+     &          call gradm11(gradu(1,1,1,3,1)
+     &                      ,gradu(1,1,1,3,2)
+     &                      ,gradu(1,1,1,3,3),vz,e)
+              ifgrad=.false.
+            endif
+            call backpts(i0,i1,j0,j1,k0,k1,isd)
+            do k=k0,k1
+            do j=j0,j1
+            do i=i0,i1
+              if(msk(i,j,k,e).lt.0.5) then
+                iw=i
+                jw=j
+                kw=k
+                if    (isd.eq.1) then
+                  jw=1
+                elseif(isd.eq.2) then
+                  iw=lx1
+                elseif(isd.eq.3) then
+                  jw=ly1
+                elseif(isd.eq.4) then
+                  iw=1
+                elseif(isd.eq.5) then
+                  kw=1
+                else
+                  kw=lz1
+                endif
+                call getSnormal(norm,iw,jw,kw,isd,e)
+
+                mu=cpfld(1,1)
+                rho=cpfld(1,2)
+
+                do i2=1,ldim
+                tau(i2)=0.0
+                  do j2=1,ldim
+                    tau(i2)=tau(i2)+mu*norm(j2)*
+     &                     (gradu(iw,jw,kw,i2,j2)+gradu(iw,jw,kw,j2,i2))
+                  enddo
+                enddo
+
+                vsca=0.0
+                do i2=1,ldim
+                  vsca=vsca+tau(i2)*norm(i2)
+                enddo
+
+                tauw=0.0
+                do i2=1,ldim
+                  tauw=tauw+(tau(i2)-vsca*norm(i2))**2
+                enddo
+                tauw=sqrt(tauw)
+                utau=sqrt(tauw/rho)
+                yp=wd(i,j,k,e)*utau*rho/mu
+                ypmin=min(ypmin,yp)
+                ypmax=max(ypmax,yp)
+                ypave=ypave+yp*bm1(i,j,k,e)
+                vol=vol+bm1(i,j,k,e)
+              endif
+            enddo
+            enddo
+            enddo
+          endif
+        enddo
+      enddo
+
+      ypmin=glmin(ypmin,1)
+      ypmax=glmax(ypmax,1)
+      ypave=glsum(ypave,1)
+      vol=glsum(vol,1)
+      ypave=ypave/vol
+
+      if(nio.eq.0)then
+        write(*,255) 'y_p+',ypmin,ypmax,ypave
+        write(*,*)
+      endif
+
+ 255  format(a15,5es13.4)
+
+      return
+      end
 c-----------------------------------------------------------------------
       subroutine backpts(i0,i1,j0,j1,k0,k1,isd)
       implicit none
