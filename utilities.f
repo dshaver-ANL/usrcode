@@ -1567,6 +1567,65 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine dumpBCIDs(na3in)
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      character*3 na3in,na3
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer iel,ifc,i,n,i0,i1,k0,k1,j0,j1,j,k
+
+      n=lx1*ly1*lz1
+
+      na3='bid'
+      if(na3in.ne.'   ') na3=na3in
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.true.
+      do i=1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      call rzero(t,n*nelt)
+
+      do iel=1,nelt
+      do ifc=2*ldim
+        call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+        do 20 k=k0,k1
+        do 20 j=j0,j1
+        do 20 i=i0,i1
+          t(i,j,k,iel,1)=BoundarIDt(ifc,iel)
+ 20     continue
+      enddo
+      enddo
+
+      call prepost (.true.,na3)
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine dumpscalars(nsca)
 
       implicit none
