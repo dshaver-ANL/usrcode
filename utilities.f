@@ -1603,12 +1603,12 @@ c-----------------------------------------------------------------------
       call rzero(t,n*nelt)
 
       do iel=1,nelt
-      do ifc=2*ldim
+      do ifc=1,2*ldim
         call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
         do 20 k=k0,k1
         do 20 j=j0,j1
         do 20 i=i0,i1
-          t(i,j,k,iel,1)=BoundarIDt(ifc,iel)
+          t(i,j,k,iel,1)=BoundaryID(ifc,iel)
  20     continue
       enddo
       enddo
