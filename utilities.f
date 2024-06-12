@@ -266,6 +266,43 @@ C-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine pincenters(xxc,yyc,Nlay,pitch)
+
+      real xxc(1),yyc(1),pitch,tht,xx,yy,pi
+      integer nlayers,ipin,Npin,ilay,j,k
+
+      pi = 4.0*atan(1.0)
+
+      rad = 0.5
+      ipin=1
+      Npin=1
+      xxc(1)=0.0
+      yyc(1)=0.0
+      if(nio.eq.0) then
+        write(*,255) "pin","x","y"
+        write(*,256) ipin,xxc(ipin),yyc(ipin)
+      endif
+      do ilay=1,Nlay
+         Npin=Npin+6*(ilay-1)
+         if(ilay.gt.1) then
+          do j= 1,6
+            tht = (j-1)*pi/3.
+            do k= 1,(ilay-1)
+              ipin=ipin+1
+              xx=(ilay-1)*pitch-(k-1)*pitch*cos(pi/3.)
+              yy=(k-1)*pitch*sin(pi/3.)
+              xxc(ipin)= xx*cos(tht)-yy*sin(tht)
+              yyc(ipin)= xx*sin(tht)+yy*cos(tht)
+              if(nio.eq.0) write(*,256) ipin,xxc(ipin),yyc(ipin)
+            enddo
+          enddo
+        endif
+      enddo
+      if(nio.eq.0) write(*,*)
+
+      return
+      end
+C-----------------------------------------------------------------------
       real function get_nearest(loc,coord)
       include 'mpif.h'
       include 'SIZE'
