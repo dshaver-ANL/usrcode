@@ -86,7 +86,7 @@ c         magic distribution - it really does a better job of preseving BLs
           do i=1,n
             arg1   = -(d(i)/deltap1)**2
             arg2   = -(d(i)/deltap2)**2
-c           h1(i)  = h1(i) + 1000.0*exp(arg1) + 10.0*exp(arg2)
+            h1(i)  = h1(i) + 1000.0*exp(arg1) + 10.0*exp(arg2)
           enddo
 
           call rone(mask,n)
