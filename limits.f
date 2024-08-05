@@ -366,22 +366,24 @@ C     Now do the thing
       return
       end
 C-----------------------------------------------------------------------
-      subroutine y_p_limitsRS(wd)
+      subroutine y_p_limitsRS(wd,ifexport)
       implicit none
       include 'SIZE'
       include 'TOTAL'
 C
 C     NOTE: min value should work if domain has internal corners
 C
+	  logical ifexport
       logical ifdef,ifut,iftl,ifpsp(ldimt-1)
       common /y_p_print/ ifut,iftl,ifpsp
 
       character*15 pname
       integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
-      integer isd,ifld
+      integer isd,ifld,ntot
 c     integer estrd,ipt,wpt
       real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1,ly1,lz1,3,3),wd(lx1,ly1,lz1,lelv)
+      real ypf(lx1,ly1,lz1,lelv)
       real tau(3),norm(3),vsca,tauw
       real utau,rho,mu,yp
       real ypmin,ypmax,ypave,vol
@@ -431,6 +433,9 @@ C     initialize the variables AFTER the flags are set
       ypmax=-1.0e10
       ypave=0.0
       vol=0.0
+
+      ntot = nx1*ny1*nz1*nelv
+      call rzero(ypf,ntot)
 
 C     Now do the thing
       do e=1,nelv
@@ -496,6 +501,7 @@ C     Now do the thing
                 tauw=sqrt(tauw)
                 utau=sqrt(tauw/rho)
                 yp=wd(i,j,k,e)*utau*rho/mu
+                ypf(i,j,k,e) = yp
                 ypmin=min(ypmin,yp)
                 ypmax=max(ypmax,yp)
                 ypave=ypave+yp*bm1(i,j,k,e)
@@ -518,6 +524,8 @@ C     Now do the thing
         write(*,255) 'y_p+',ypmin,ypmax,ypave
         write(*,*)
       endif
+
+      if(ifexport) call outpost(ypf,ypf,ypf,ypf,t,'ypf')
 
  255  format(a15,5es13.4)
 
