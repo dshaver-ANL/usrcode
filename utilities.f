@@ -232,7 +232,6 @@ C-----------------------------------------------------------------------
               yy=(k-1)*pitch*sin(pi/3.)
               xxc(ipin)= xx*cos(tht)-yy*sin(tht)
               yyc(ipin)= xx*sin(tht)+yy*cos(tht)
-              if(nio.eq.0) write(*,256) ipin,xxc(ipin),yyc(ipin)
             enddo
           enddo
         endif
@@ -1498,6 +1497,72 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine save_ioflags
+
+      implicit none
+
+      include 'SIZE'
+      include 'INPUT'
+
+      logical ifbackup(0:ldimt+4)
+      integer i
+
+      common /ioflagss/ ifbackup 
+
+      ifbackup(0)=ifxyo
+      ifbackup(1)=ifvo
+      ifbackup(2)=ifpo
+      ifbackup(3)=ifto
+      do i = 1,ldimt1
+        ifbackup(3+i)=ifpsco(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine restore_ioflags
+
+      implicit none
+
+      include 'SIZE'
+      include 'INPUT'
+
+      logical ifbackup(0:ldimt+4)
+      integer i
+
+      common /ioflagss/ ifbackup 
+
+      ifxyo=ifbackup(0)
+      ifvo =ifbackup(1)
+      ifpo =ifbackup(2)
+      ifto =ifbackup(3)
+      do i = 1,ldimt1
+        ifpsco(i)=ifbackup(3+i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine clear_ioflags
+
+      implicit none
+
+      include 'SIZE'
+      include 'INPUT'
+
+      integer i
+
+      ifxyo=.false.
+      ifvo =.false.
+      ifpo =.false.
+      ifto =.false.
+      do i = 1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine dumpmesh(na3in)
 
       implicit none
@@ -1513,31 +1578,14 @@ c-----------------------------------------------------------------------
       na3='msh'
       if(na3in.ne.'   ') na3=na3in
 
-      ifxyo_s = ifxyo
-      ifpo_s = ifpo
-      ifvo_s = ifvo
-      ifto_s = ifto
-      do i=1,ldimt1
-        ifpsco_s(i)=ifpsco(i)
-      enddo
+      call save_ioflags
+      call clear_ioflags
 
       ifxyo=.true.
-      ifpo=.false.
-      ifvo=.false.
-      ifto=.false.
-      do i=1,ldimt1
-        ifpsco(i)=.false.
-      enddo
 
       call prepost (.true.,na3)
 
-      ifxyo = ifxyo_s
-      ifpo = ifpo_s
-      ifvo = ifvo_s
-      ifto = ifto_s
-      do i=1,ldimt1
-        ifpsco(i)=ifpsco_s(i)
-      enddo
+      call restore_ioflags
 
       return
       end
@@ -1550,7 +1598,6 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
 
       character*3 na3in,na3
-      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
 
       integer iel,ifc,i,n,i0,i1,k0,k1,j0,j1,j,k
 
@@ -1559,21 +1606,11 @@ c-----------------------------------------------------------------------
       na3='bid'
       if(na3in.ne.'   ') na3=na3in
 
-      ifxyo_s = ifxyo
-      ifpo_s = ifpo
-      ifvo_s = ifvo
-      ifto_s = ifto
-      do i=1,ldimt1
-        ifpsco_s(i)=ifpsco(i)
-      enddo
+      call save_ioflags
+      call clear_ioflags
 
       ifxyo=.true.
-      ifpo=.false.
-      ifvo=.false.
       ifto=.true.
-      do i=1,ldimt1
-        ifpsco(i)=.false.
-      enddo
 
       call rzero(t,n*nelt)
 
@@ -1590,13 +1627,7 @@ c-----------------------------------------------------------------------
 
       call prepost (.true.,na3)
 
-      ifxyo = ifxyo_s
-      ifpo = ifpo_s
-      ifvo = ifvo_s
-      ifto = ifto_s
-      do i=1,ldimt1
-        ifpsco(i)=ifpsco_s(i)
-      enddo
+      call restore_ioflags
 
       return
       end
@@ -1608,25 +1639,12 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
-
       integer i,nsca
 
-      ifxyo_s = ifxyo
-      ifpo_s = ifpo
-      ifvo_s = ifvo
-      ifto_s = ifto
-      do i=1,ldimt1
-        ifpsco_s(i)=ifpsco(i)
-      enddo
+      call save_ioflags
+      call clear_ioflags
 
       ifxyo=.true.
-      ifpo=.false.
-      ifvo=.false.
-      ifto=.false.
-      do i=1,ldimt1
-        ifpsco(i)=.false.
-      enddo
 
       if(nsca.ge.1) ifto=.true.
       do i=1,nsca-1
@@ -1638,13 +1656,7 @@ c-----------------------------------------------------------------------
 
       call prepost (.true.,'sca')
 
-      ifxyo = ifxyo_s
-      ifpo = ifpo_s
-      ifvo = ifvo_s
-      ifto = ifto_s
-      do i=1,ldimt1
-        ifpsco(i)=ifpsco_s(i)
-      enddo
+      call restore_ioflags
 
       return
       end
@@ -1662,28 +1674,16 @@ c-----------------------------------------------------------------------
      $               DV2  (LX1,LY1,LZ1,LELV),
      $               DFC  (LX1,LY1,LZ1,LELV)
 
-      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
-
       integer i,n
       real tsv(lx1,ly1,lz1,lelv),cdum,psv(lx2,ly2,lz2,lelv)
 
       n = lx1*ly1*lz1*nelv
 
-      ifxyo_s = ifxyo
-      ifpo_s = ifpo
-      ifvo_s = ifvo
-      ifto_s = ifto
-      do i=1,ldimt1
-        ifpsco_s(i)=ifpsco(i)
-      enddo
+      call save_ioflags
+      call clear_ioflags
 
       ifxyo=.true.
-      ifpo=.false.
-      ifvo=.false.
       ifto=.true.
-      do i=1,ldimt1
-        ifpsco(i)=.false.
-      enddo
 
       if(ifsplit) then
         ifpo=.true.
@@ -1708,13 +1708,7 @@ c       call add2 (qtl,usrdiv,n)
       call copy(t,tsv,n)
       if(ifsplit) call copy(pr,psv,n)
 
-      ifxyo = ifxyo_s
-      ifpo = ifpo_s
-      ifvo = ifvo_s
-      ifto = ifto_s
-      do i=1,ldimt1
-        ifpsco(i)=ifpsco_s(i)
-      enddo
+      call restore_ioflags
 
       return
       end
@@ -1732,30 +1726,18 @@ c-----------------------------------------------------------------------
      $               DV2  (LX1,LY1,LZ1,LELV),
      $               DFC  (LX1,LY1,LZ1,LELV)
 
-      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
-
       integer i,n
       real tsv(lx1*ly1*lz1*lelv,ldimt),cdum,psv(lx2,ly2,lz2,lelv)
       real wd(lx1*ly1*lz1*lelv)
 
       n = lx1*ly1*lz1*nelv
 
-      ifxyo_s = ifxyo
-      ifpo_s = ifpo
-      ifvo_s = ifvo
-      ifto_s = ifto
-      do i=1,ldimt1
-        ifpsco_s(i)=ifpsco(i)
-      enddo
+      call save_ioflags
+      call clear_ioflags
 
       ifxyo=.true.
-      ifpo=.false.
-      ifvo=.false.
       ifto=.true.
       ifpsco(1)=.true.
-      do i=2,ldimt1
-        ifpsco(i)=.false.
-      enddo
 
       if(ifsplit) then
         ifpo=.true.
@@ -1786,13 +1768,7 @@ c       call add2 (qtl,usrdiv,n)
       call copy(t(1,1,1,1,2),tsv(1,2),n)
       if(ifsplit) call copy(pr,psv,n)
 
-      ifxyo = ifxyo_s
-      ifpo = ifpo_s
-      ifvo = ifvo_s
-      ifto = ifto_s
-      do i=1,ldimt1
-        ifpsco(i)=ifpsco_s(i)
-      enddo
+      call restore_ioflags
 
       return
       end
