@@ -461,7 +461,7 @@ c     integer estrd,ipt,wpt
                 enddo
                 tauw=sqrt(tauw)
                 utau=sqrt(tauw/rho)
-                yp=wd(i,j,k,e)*utau*rho/mu
+                yp=dist*utau*rho/mu
                 ypf(i,j,k,e) = yp
                 ypmin=min(ypmin,yp)
                 ypmax=max(ypmax,yp)
