@@ -382,7 +382,7 @@ C
       integer isd,ifld,ntot
 c     integer estrd,ipt,wpt
       real gradu(lx1,ly1,lz1,3,3),wd(lx1,ly1,lz1,lelv)
-      real ypf(lx1,ly1,lz1,lelv)
+      real ypf(lx1,ly1,lz1,lelv),dist
       real tau(3),norm(3),vsca,tauw
       real utau,rho,mu,yp
       real ypmin,ypmax,ypave,vol
@@ -417,61 +417,60 @@ c     integer estrd,ipt,wpt
      &                      ,gradu(1,1,1,3,2)
      &                      ,gradu(1,1,1,3,3),vz,e)
               ifgrad=.false.
-              endif
-              call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
-              do k=k0,k1
-              do j=j0,j1
-              do i=i0,i1
-                ib=i
-                jb=j
-                kb=k
-                if    (isd.eq.1) then
-                  jb=2
-                elseif(isd.eq.2) then
-                  ib=lx1-1
-                elseif(isd.eq.3) then
-                  jb=ly1-1
-                elseif(isd.eq.4) then
-                  ib=2
-                elseif(isd.eq.5) then
-                  kb=2
-                else
-                  kb=lz1-1
-                endif
-                dist=(wd(ib,jb,kb,e)
-                if(dist.gt.1.0e-12) then
-                  call getSnormal(norm,i,j,k,isd,e)
-
-                  do i2=1,ldim
-                  tau(i2)=0.0
-                    do j2=1,ldim
-                      tau(i2)=tau(i2)+mu*norm(j2)*
-     &                           (gradu(i,j,k,i2,j2)+gradu(i,j,k,j2,i2))
-                    enddo
-                  enddo
-
-                  vsca=0.0
-                  do i2=1,ldim
-                    vsca=vsca+tau(i2)*norm(i2)
-                  enddo
-
-                  tauw=0.0
-                  do i2=1,ldim
-                    tauw=tauw+(tau(i2)-vsca*norm(i2))**2
-                  enddo
-                  tauw=sqrt(tauw)
-                  utau=sqrt(tauw/rho)
-                  yp=wd(i,j,k,e)*utau*rho/mu
-                  ypf(i,j,k,e) = yp
-                  ypmin=min(ypmin,yp)
-                  ypmax=max(ypmax,yp)
-                  ypave=ypave+yp*bm1(i,j,k,e)
-                  vol=vol+bm1(i,j,k,e)
-                endif
-              enddo
-              enddo
-              enddo
             endif
+            call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
+            do k=k0,k1
+            do j=j0,j1
+            do i=i0,i1
+              ib=i
+              jb=j
+              kb=k
+              if    (isd.eq.1) then
+                jb=2
+              elseif(isd.eq.2) then
+                ib=lx1-1
+              elseif(isd.eq.3) then
+                jb=ly1-1
+              elseif(isd.eq.4) then
+                ib=2
+              elseif(isd.eq.5) then
+                kb=2
+              else
+                kb=lz1-1
+              endif
+              dist=wd(ib,jb,kb,e)
+              if(dist.gt.1.0e-12) then
+                call getSnormal(norm,i,j,k,isd,e)
+
+                do i2=1,ldim
+                tau(i2)=0.0
+                  do j2=1,ldim
+                    tau(i2)=tau(i2)+mu*norm(j2)*
+     &                           (gradu(i,j,k,i2,j2)+gradu(i,j,k,j2,i2))
+                  enddo
+                enddo
+
+                vsca=0.0
+                do i2=1,ldim
+                  vsca=vsca+tau(i2)*norm(i2)
+                enddo
+
+                tauw=0.0
+                do i2=1,ldim
+                  tauw=tauw+(tau(i2)-vsca*norm(i2))**2
+                enddo
+                tauw=sqrt(tauw)
+                utau=sqrt(tauw/rho)
+                yp=wd(i,j,k,e)*utau*rho/mu
+                ypf(i,j,k,e) = yp
+                ypmin=min(ypmin,yp)
+                ypmax=max(ypmax,yp)
+                ypave=ypave+yp*bm1(i,j,k,e)
+                vol=vol+bm1(i,j,k,e)
+              endif
+            enddo
+            enddo
+            enddo
           endif
         enddo
       enddo

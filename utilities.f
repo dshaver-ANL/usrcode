@@ -232,7 +232,6 @@ C-----------------------------------------------------------------------
               yy=(k-1)*pitch*sin(pi/3.)
               xxc(ipin)= xx*cos(tht)-yy*sin(tht)
               yyc(ipin)= xx*sin(tht)+yy*cos(tht)
-              if(nio.eq.0) write(*,256) ipin,xxc(ipin),yyc(ipin)
             enddo
           enddo
         endif
