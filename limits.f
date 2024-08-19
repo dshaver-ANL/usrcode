@@ -366,73 +366,41 @@ C     Now do the thing
       return
       end
 C-----------------------------------------------------------------------
-      subroutine y_p_limitsRS(wd)
+      subroutine y_p_limitsRS(wd,ifexport)
       implicit none
       include 'SIZE'
       include 'TOTAL'
 C
 C     NOTE: min value should work if domain has internal corners
 C
+      logical ifexport
       logical ifdef,ifut,iftl,ifpsp(ldimt-1)
       common /y_p_print/ ifut,iftl,ifpsp
 
       character*15 pname
-      integer e,i,i0,i1,j,j0,j1,k,k0,k1,iw,jw,kw,i2,j2
-      integer isd,ifld
+      integer e,i,i0,i1,j,j0,j1,k,k0,k1,ib,jb,kb,i2,j2
+      integer isd,ifld,ntot
 c     integer estrd,ipt,wpt
-      real msk(lx1,ly1,lz1,lelv)
       real gradu(lx1,ly1,lz1,3,3),wd(lx1,ly1,lz1,lelv)
+      real ypf(lx1,ly1,lz1,lelv),dist
       real tau(3),norm(3),vsca,tauw
       real utau,rho,mu,yp
       real ypmin,ypmax,ypave,vol
       real glmin,glmax,glsum
-      logical ifgrad, ifdid
+      real tsv(lx1*ly1*lz1*lelt)
+      logical ifgrad
 
-      data ifdid /.false./
-      save ifdid, msk
-
-C     do some initializations once
-      if(.not.ifdid)then
-        ifdid=.true.
-
-C       build the mask  (this mask ignores some points which maybe important... 
-        call rone(msk,lx1*ly1*lz1*nelv)    ! need to look at it more closely)
-        do e=1,nelv
-          do isd=1,2*ndim
-            if(cbc(isd,e,1).eq.'W  ') then
-              call backpts(i0,i1,j0,j1,k0,k1,isd)
-              do k=k0,k1
-              do j=j0,j1
-              do i=i0,i1
-                msk(i,j,k,e)=0.0
-              enddo
-              enddo
-              enddo
-            endif
-          enddo
-          do isd=1,2*ndim
-            if(cbc(isd,e,1).eq.'W  ') then
-              call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
-              do k=k0,k1
-              do j=j0,j1
-              do i=i0,i1
-                msk(i,j,k,e)=1.0
-              enddo
-              enddo
-              enddo
-            endif
-          enddo
-        enddo
-        call dssum(msk,lx1,ly1,lz1) !for elements with edges but not faces along a wall
-      endif
-
-C     initialize the variables AFTER the flags are set
       ypmin=1.0e10
       ypmax=-1.0e10
       ypave=0.0
       vol=0.0
 
-C     Now do the thing
+      ntot = nx1*ny1*nz1*nelv
+      call rzero(ypf,ntot)
+
+      mu=cpfld(1,1)
+      rho=cpfld(1,2)
+
       do e=1,nelv
         ifgrad=.true.
         do isd=1,2*ndim
@@ -450,37 +418,35 @@ C     Now do the thing
      &                      ,gradu(1,1,1,3,3),vz,e)
               ifgrad=.false.
             endif
-            call backpts(i0,i1,j0,j1,k0,k1,isd)
+            call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,isd)
             do k=k0,k1
             do j=j0,j1
             do i=i0,i1
-              if(msk(i,j,k,e).lt.0.5) then
-                iw=i
-                jw=j
-                kw=k
-                if    (isd.eq.1) then
-                  jw=1
-                elseif(isd.eq.2) then
-                  iw=lx1
-                elseif(isd.eq.3) then
-                  jw=ly1
-                elseif(isd.eq.4) then
-                  iw=1
-                elseif(isd.eq.5) then
-                  kw=1
-                else
-                  kw=lz1
-                endif
-                call getSnormal(norm,iw,jw,kw,isd,e)
-
-                mu=cpfld(1,1)
-                rho=cpfld(1,2)
+              ib=i
+              jb=j
+              kb=k
+              if    (isd.eq.1) then
+                jb=2
+              elseif(isd.eq.2) then
+                ib=lx1-1
+              elseif(isd.eq.3) then
+                jb=ly1-1
+              elseif(isd.eq.4) then
+                ib=2
+              elseif(isd.eq.5) then
+                kb=2
+              else
+                kb=lz1-1
+              endif
+              dist=wd(ib,jb,kb,e)
+              if(dist.gt.1.0e-12) then
+                call getSnormal(norm,i,j,k,isd,e)
 
                 do i2=1,ldim
                 tau(i2)=0.0
                   do j2=1,ldim
                     tau(i2)=tau(i2)+mu*norm(j2)*
-     &                     (gradu(iw,jw,kw,i2,j2)+gradu(iw,jw,kw,j2,i2))
+     &                           (gradu(i,j,k,i2,j2)+gradu(i,j,k,j2,i2))
                   enddo
                 enddo
 
@@ -495,7 +461,8 @@ C     Now do the thing
                 enddo
                 tauw=sqrt(tauw)
                 utau=sqrt(tauw/rho)
-                yp=wd(i,j,k,e)*utau*rho/mu
+                yp=dist*utau*rho/mu
+                ypf(i,j,k,e) = yp
                 ypmin=min(ypmin,yp)
                 ypmax=max(ypmax,yp)
                 ypave=ypave+yp*bm1(i,j,k,e)
@@ -518,6 +485,23 @@ C     Now do the thing
         write(*,255) 'y_p+',ypmin,ypmax,ypave
         write(*,*)
       endif
+
+      if(ifexport) then 
+        call save_ioflags
+        call clear_ioflags
+
+        call copy(tsv,t,ntot)
+        call copy(t,ypf,ntot)
+
+        ifxyo=.true.
+        ifto =.true.        
+
+        call prepost(.true.,'ypf')
+
+        call copy(t,tsv,ntot)
+        call restore_ioflags
+      endif
+
 
  255  format(a15,5es13.4)
 
