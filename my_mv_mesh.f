@@ -76,7 +76,7 @@ c         delta = 0.02            ! 1/2 separation of cylinders
           call rone (h1,n)
           call rzero(h2,n)
        
-          call cheap_dist(d,0,'mv ')
+          call cheap_dist_0(d,0,'mv ')
 
           if (nid.eq.0) write(6,*) "delta: ",delta
           deltap1 = 1.0*delta  ! Protected b.l. thickness
@@ -137,10 +137,10 @@ c         magic distribution - it really does a better job of preseving BLs
         call copy(vy,dely,n)
         call copy(vz,delz,n)
 
-        call print_limits
+c       call print_limits
 
-        time = istep
-        call prepost(.true.,'mvm')
+c       time = istep
+c       call prepost(.true.,'mvm')
 
         call fix_geom
 
@@ -235,5 +235,91 @@ c    $     (u,n,approx,napprox,h1,h2,mask,mult,ifwt,ifvec,name6)
       call add2(u,ub,n)
 
       return
+      end
+C-----------------------------------------------------------------------
+      subroutine cheap_dist_0(d,ifld,b)
+
+c     just like cheak_dist, but uses a hardcoded nelt
+
+      include 'SIZE'
+      include 'GEOM'       ! Coordinates
+      include 'INPUT'      ! cbc()
+      include 'TSTEP'      ! nelfld
+      include 'PARALLEL'   ! gather-scatter handle for field "ifld"
+
+      real d(lx1,ly1,lz1,lelt)
+
+      character*3 b  ! Boundary condition of interest
+
+      integer e,eg,f
+
+      nel = nelt
+      n = lx1*ly1*lz1*nel
+
+      call domain_size(xmin,xmax,ymin,ymax,zmin,zmax)
+
+      xmn = min(xmin,ymin)
+      xmx = max(xmax,ymax)
+      if (if3d) xmn = min(xmn ,zmin)
+      if (if3d) xmx = max(xmx ,zmax)
+
+      big = 10*(xmx-xmn)
+      call cfill(d,big,n)
+
+      nface = 2*ldim
+      do e=1,nel     ! Set d=0 on walls
+      do f=1,nface
+        if (cbc(f,e,ifld).eq.b) call facev(d,e,f,0.,lx1,ly1,lz1)
+      enddo
+      enddo
+
+      do ipass=1,10000
+         dmax    = 0
+         nchange = 0
+         do e=1,nel
+           do k=1,lz1
+           do j=1,ly1
+           do i=1,lx1
+             i0=max(  1,i-1)
+             j0=max(  1,j-1)
+             k0=max(  1,k-1)
+             i1=min(lx1,i+1)
+             j1=min(ly1,j+1)
+             k1=min(lz1,k+1)
+             do kk=k0,k1
+             do jj=j0,j1
+             do ii=i0,i1
+
+              if (if3d) then
+               dtmp = d(ii,jj,kk,e) + dist3d(
+     $           xm1(ii,jj,kk,e),ym1(ii,jj,kk,e),zm1(ii,jj,kk,e)
+     $          ,xm1(i ,j ,k ,e),ym1(i ,j ,k ,e),zm1(i ,j ,k ,e))
+              else
+               dtmp = d(ii,jj,kk,e) + dist2d(
+     $           xm1(ii,jj,kk,e),ym1(ii,jj,kk,e)
+     $          ,xm1(i ,j ,k ,e),ym1(i ,j ,k ,e))
+              endif
+
+              if (dtmp.lt.d(i,j,k,e)) then
+                d(i,j,k,e) = dtmp
+                nchange = nchange+1
+                dmax = max(dmax,d(i,j,k,e))
+              endif
+             enddo
+             enddo
+             enddo
+
+           enddo
+           enddo
+           enddo
+         enddo
+         call fgslib_gs_op(gsh_fld(ifld),d,1,3,0) ! min over all elements
+         nchange = iglsum(nchange,1)
+         dmax = glmax(dmax,1)
+         if (nio.eq.0.and.loglevel.gt.2) write(6,1) ipass,nchange,dmax,b
+    1    format(i9,i12,1pe12.4,' max distance b: ',a3)
+         if (nchange.eq.0) goto 1000
+      enddo
+ 1000 return
       end
 C-----------------------------------------------------------------------
