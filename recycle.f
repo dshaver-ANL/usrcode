@@ -479,9 +479,8 @@ C-----------------------------------------------------------------------
       real function temp_recycle(ix,iy,iz,ie,ifield)
       implicit none
       include 'SIZE'
-      include 'TSTEP'
 
-      integer ix,iy,iz,ie
+      integer ix,iy,iz,ie,ifield
       real uin,vin,win,tin
       common /cvelbc/ uin(lx1,ly1,lz1,lelv)
      $              , vin(lx1,ly1,lz1,lelv)
