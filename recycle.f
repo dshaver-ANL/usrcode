@@ -45,6 +45,7 @@ c     real dx,dy,dz,ubar,tbar
 
 c******** Recycling using Findpts ****************************
 
+c     <dx,dy,dz> is the offset vector from the inlet to the recycling plane
 c     dx=5.
 c     dy=0.
 c     dz=0.
