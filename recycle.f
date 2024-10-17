@@ -18,13 +18,13 @@ c     iffield(3)=.true. ! recycle field 4 (scalar 2, ifield-1)
 c     return
 c     end
 c-----------------------------------------------------------------------
-c     subroutine userbc (ix,iy,iz,f,ieg)
+c     subroutine userbc (ix,iy,iz,f,eg)
 c     implicit none
 c     include 'SIZE'
 c     include 'TOTAL'
 c     include 'NEKUSE'
 
-c     integer ix,iy,iz,ie,f,ieg
+c     integer ix,iy,iz,ie,f,eg
 c     ie = gllel(eg)
 c     real ux_recycle,uy_recycle,uz_recycle,temp_recycle
 
