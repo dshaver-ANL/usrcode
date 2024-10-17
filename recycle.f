@@ -479,6 +479,7 @@ C-----------------------------------------------------------------------
       real function temp_recycle(ix,iy,iz,ie,ifield)
       implicit none
       include 'SIZE'
+      include 'TSTEP'
 
       integer ix,iy,iz,ie
       real uin,vin,win,tin
