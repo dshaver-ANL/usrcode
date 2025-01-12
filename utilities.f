@@ -237,6 +237,9 @@ C-----------------------------------------------------------------------
         endif
       enddo
 
+  255 format(a4,2a11)
+  256 format(i4,2f11.6)
+
       return
       end
 C-----------------------------------------------------------------------
@@ -1600,8 +1603,10 @@ c-----------------------------------------------------------------------
       character*3 na3in,na3
 
       integer iel,ifc,i,n,i0,i1,k0,k1,j0,j1,j,k
+      integer nBCIDs
 
       n=lx1*ly1*lz1
+      nBCIDs = 0
 
       na3='bid'
       if(na3in.ne.'   ') na3=na3in
@@ -1613,19 +1618,30 @@ c-----------------------------------------------------------------------
       ifto=.true.
 
       call rzero(t,n*nelt)
+      call izero(out_mask,nelt)
 
       do iel=1,nelt
       do ifc=1,2*ldim
-        call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
-        do 20 k=k0,k1
-        do 20 j=j0,j1
-        do 20 i=i0,i1
-          t(i,j,k,iel,1)=BoundaryID(ifc,iel)
- 20     continue
+        if(BoundaryID(ifc,iel).ne.0) then
+          out_mask(iel) = 1
+          nBCIDs=nBCIDs+1
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            t(i,j,k,iel,1)=BoundaryID(ifc,iel)
+ 20       continue
+        endif
       enddo
       enddo
 
-      call prepost (.true.,na3)
+      nBCIDs = iglsum(nBCIDs,1)
+      if(nBCIDs.eq.0) then
+        if(nio.eq.0) write(*,*) 
+     &            "Warning in dumpBCIDs: no non-zero boundary IDs found"
+      else
+        call prepost (.true.,na3)
+      endif
 
       call restore_ioflags
 
